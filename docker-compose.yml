@@ -1,0 +1,13 @@
+services:
+  edittracker:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: file:/data/edittracker.db
+    volumes:
+      - edittracker_data:/data
+    restart: unless-stopped
+
+volumes:
+  edittracker_data:

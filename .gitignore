@@ -1,1 +1,23 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.production
+
+# Database (local dev only)
+prisma/*.db
+prisma/*.db-journal
+
+# Misc
+.DS_Store
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Debug logs
+npm-debug.log*

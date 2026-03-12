@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma"
+import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 import { ProjectStatusBadge } from "@/components/projects/ProjectStatusBadge"
 import { PaymentTypeBadge } from "@/components/projects/PaymentTypeBadge"
+import { ProjectFiles } from "@/components/projects/ProjectFiles"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { CheckCircle, XCircle } from "lucide-react"
 import Link from "next/link"
@@ -13,8 +15,9 @@ export default async function ProjectDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const project = await prisma.project.findUnique({
-    where: { id },
+  const { userId } = await auth()
+  const project = await prisma.project.findFirst({
+    where: { id, userId: userId ?? "" },
     include: { client: true },
   })
 
@@ -91,6 +94,8 @@ export default async function ProjectDetailPage({
           </div>
         )}
       </div>
+
+      <ProjectFiles projectId={project.id} />
 
       <div>
         <Link href="/projects" className="text-sm text-zinc-500 hover:text-zinc-800">

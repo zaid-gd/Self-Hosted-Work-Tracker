@@ -1,5 +1,5 @@
 import { formatCurrency } from "@/lib/utils"
-import { Briefcase, AlertCircle, Gift, TrendingUp } from "lucide-react"
+import { AlertCircle, Briefcase, Gift, TrendingUp } from "lucide-react"
 
 interface Props {
   totalProjects: number
@@ -9,53 +9,70 @@ interface Props {
   currency: string
 }
 
-export function KpiCards({ totalProjects, unpaidCount, freeCount, earnedAmount, currency }: Props) {
+export function KpiCards({
+  totalProjects,
+  unpaidCount,
+  freeCount,
+  earnedAmount,
+  currency,
+}: Props) {
   const cards = [
     {
-      title: "Total Projects",
+      title: "Active Ledger",
+      subtitle: "Projects currently tracked in your desk.",
       value: totalProjects.toString(),
       icon: Briefcase,
-      iconClass: "text-zinc-500",
-      valueClass: "text-zinc-900",
+      accent: "text-stone-700",
+      chip: "bg-stone-100 text-stone-700",
     },
     {
-      title: "Unpaid/Pending",
+      title: "Needs Collection",
+      subtitle: "Unpaid work that still needs follow-up.",
       value: unpaidCount.toString(),
       icon: AlertCircle,
-      iconClass: "text-red-500",
-      valueClass: "text-red-600",
+      accent: "text-amber-700",
+      chip: "bg-amber-100 text-amber-700",
     },
     {
-      title: "Free Work",
+      title: "Pro Bono Load",
+      subtitle: "Free work kept visible on the board.",
       value: freeCount.toString(),
       icon: Gift,
-      iconClass: "text-zinc-400",
-      valueClass: "text-zinc-500",
+      accent: "text-slate-700",
+      chip: "bg-slate-100 text-slate-700",
     },
     {
-      title: "Earned (Paid)",
+      title: "Collected Revenue",
+      subtitle: "Paid work already secured.",
       value: formatCurrency(earnedAmount, currency),
       icon: TrendingUp,
-      iconClass: "text-emerald-500",
-      valueClass: "text-emerald-700",
+      accent: "text-emerald-700",
+      chip: "bg-emerald-100 text-emerald-700",
     },
   ]
 
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => (
-        <div
+        <section
           key={card.title}
-          className="bg-white border rounded-lg p-4 flex items-center gap-4"
+          className="surface-panel flex min-h-36 flex-col justify-between p-5"
         >
-          <div className={`shrink-0 ${card.iconClass}`}>
-            <card.icon className="w-5 h-5" />
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="eyebrow">{card.title}</p>
+              <p className="mt-2 max-w-52 text-sm leading-6 text-stone-600">
+                {card.subtitle}
+              </p>
+            </div>
+            <div
+              className={`flex h-11 w-11 items-center justify-center rounded-full ${card.chip}`}
+            >
+              <card.icon className="h-5 w-5" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-zinc-500 font-medium">{card.title}</p>
-            <p className={`text-xl font-bold ${card.valueClass}`}>{card.value}</p>
-          </div>
-        </div>
+          <p className={`mt-6 text-3xl font-semibold ${card.accent}`}>{card.value}</p>
+        </section>
       ))}
     </div>
   )

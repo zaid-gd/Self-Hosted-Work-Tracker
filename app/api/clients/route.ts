@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireUserId, unauthorizedResponse } from "@/lib/auth"
 import { ClientSchema } from "@/lib/validators"
 
 export async function GET() {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const clients = await prisma.client.findMany({
+      where: { userId },
       include: {
         _count: { select: { projects: true } },
         projects: {
@@ -29,10 +34,15 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const body = await req.json()
     const data = ClientSchema.parse(body)
 
-    const client = await prisma.client.create({ data })
+    const client = await prisma.client.create({
+      data: { ...data, userId },
+    })
     return NextResponse.json(client, { status: 201 })
   } catch (error: unknown) {
     if (error instanceof Error && error.name === "ZodError") {

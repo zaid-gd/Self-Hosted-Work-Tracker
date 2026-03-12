@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 import { ClientForm } from "@/components/clients/ClientForm"
 import type { Client } from "@/types"
@@ -9,7 +10,8 @@ export default async function EditClientPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const clientRaw = await prisma.client.findUnique({ where: { id } })
+  const { userId } = await auth()
+  const clientRaw = await prisma.client.findFirst({ where: { id, userId: userId ?? "" } })
 
   if (!clientRaw) return notFound()
 

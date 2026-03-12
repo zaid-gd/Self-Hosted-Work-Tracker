@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 import { ProjectForm } from "@/components/projects/ProjectForm"
 import type { Client, Project } from "@/types"
@@ -9,12 +10,17 @@ export default async function EditProjectPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const { userId } = await auth()
 
   const [projectRaw, clientsRaw] = await Promise.all([
-    prisma.project.findUnique({ where: { id }, include: { client: true } }),
+    prisma.project.findFirst({
+      where: { id, userId: userId ?? "" },
+      include: { client: true },
+    }),
     prisma.client.findMany({
+      where: { userId: userId ?? "" },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, contactEmail: true, notes: true, createdAt: true, updatedAt: true },
+      select: { id: true, userId: true, name: true, contactEmail: true, notes: true, createdAt: true, updatedAt: true },
     }),
   ])
 

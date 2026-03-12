@@ -1,38 +1,57 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { Pencil, Trash2, CheckCircle, XCircle } from "lucide-react"
-import { useState } from "react"
-import { ProjectStatusBadge } from "./ProjectStatusBadge"
-import { PaymentTypeBadge } from "./PaymentTypeBadge"
+import { Button } from "@/components/ui/button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import type { Project } from "@/types"
+import { CheckCircle2, Pencil, Plus, Trash2, XCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { PaymentTypeBadge } from "./PaymentTypeBadge"
+import { ProjectStatusBadge } from "./ProjectStatusBadge"
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 
 interface Props {
   projects: Project[]
-  onDelete: (id: string) => void
+  onDelete: (id: string) => Promise<void> | void
+}
+
+function getTagList(tags: string | null | undefined) {
+  return (tags ?? "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
 }
 
 export function ProjectTable({ projects, onDelete }: Props) {
   const router = useRouter()
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState("")
 
   async function handleDelete() {
     if (!deleteTarget) return
+
     setDeleting(true)
+    setDeleteError("")
+
     try {
-      await fetch(`/api/projects/${deleteTarget.id}`, { method: "DELETE" })
-      onDelete(deleteTarget.id)
+      const response = await fetch(`/api/projects/${deleteTarget.id}`, { method: "DELETE" })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Failed to delete project")
+      }
+
+      await onDelete(deleteTarget.id)
       setDeleteTarget(null)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Failed to delete project")
     } finally {
       setDeleting(false)
     }
@@ -40,128 +59,146 @@ export function ProjectTable({ projects, onDelete }: Props) {
 
   if (projects.length === 0) {
     return (
-      <div className="bg-white border rounded-lg p-12 text-center">
-        <p className="text-zinc-500 text-sm mb-3">No projects found</p>
-        <Button
-          size="sm"
-          onClick={() => router.push("/projects/new")}
-        >
-          + Add your first project
+      <section className="surface-panel flex flex-col items-center justify-center p-12 text-center">
+        <p className="eyebrow">No Work Yet</p>
+        <h2 className="mt-2 text-3xl text-stone-900">Your board is ready for the first assignment.</h2>
+        <p className="mt-3 max-w-md text-sm leading-6 text-stone-600">
+          Start with one real project. The dashboard becomes useful as soon as due dates, payment posture, and client context are visible in one place.
+        </p>
+        <Button className="mt-6" onClick={() => router.push("/projects/new")}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add your first project
         </Button>
-      </div>
+      </section>
     )
   }
 
   return (
     <>
-      <div className="bg-white border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-50 border-b">
-            <tr>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Title</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Client</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Status</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Payment</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Amount</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Paid</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">Due</th>
-              <th className="px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {projects.map((project) => (
-              <tr
-                key={project.id}
-                className="hover:bg-zinc-50 transition-colors"
-              >
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => router.push(`/projects/${project.id}`)}
-                    className="text-zinc-900 font-medium hover:text-violet-600 text-left"
-                  >
-                    {project.title}
-                  </button>
-                  {project.tags && (
-                    <div className="mt-0.5 flex flex-wrap gap-1">
-                      {project.tags.split(",").filter(Boolean).map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded"
-                        >
-                          {tag.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-zinc-600">{project.client.name}</td>
-                <td className="px-4 py-3">
-                  <ProjectStatusBadge status={project.status} />
-                </td>
-                <td className="px-4 py-3">
-                  <PaymentTypeBadge paymentType={project.paymentType} />
-                </td>
-                <td className="px-4 py-3 text-right text-zinc-700 font-mono text-xs">
-                  {project.agreedAmount != null
-                    ? formatCurrency(project.agreedAmount, project.currency)
-                    : "—"}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  {project.isPaid ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-500 inline" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-red-400 inline" />
-                  )}
-                </td>
-                <td className="px-4 py-3 text-zinc-500 text-xs">
-                  {formatDate(project.dueDate)}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => router.push(`/projects/${project.id}/edit`)}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => setDeleteTarget(project)}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+      <div className="grid gap-4 xl:grid-cols-2">
+        {projects.map((project) => {
+          const tags = getTagList(project.tags)
+
+          return (
+            <article
+              key={project.id}
+              className="surface-panel flex flex-col gap-5 p-5 transition-transform duration-200 hover:-translate-y-0.5"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ProjectStatusBadge status={project.status} />
+                    <PaymentTypeBadge paymentType={project.paymentType} />
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/projects/${project.id}`)}
+                      className="text-left text-2xl text-stone-900 transition-colors hover:text-stone-600"
+                    >
+                      {project.title}
+                    </button>
+                    <p className="mt-1 text-sm text-stone-500">{project.client.name}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="border-stone-200 bg-white"
+                    onClick={() => router.push(`/projects/${project.id}/edit`)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                    onClick={() => {
+                      setDeleteError("")
+                      setDeleteTarget(project)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl bg-stone-50 p-4">
+                  <p className="eyebrow">Value</p>
+                  <p className="mt-2 text-lg font-semibold text-stone-900">
+                    {formatCurrency(project.agreedAmount, project.currency)}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-stone-50 p-4">
+                  <p className="eyebrow">Due Date</p>
+                  <p className="mt-2 text-lg font-semibold text-stone-900">
+                    {formatDate(project.dueDate)}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-stone-50 p-4">
+                  <p className="eyebrow">Paid</p>
+                  <div className="mt-2 flex items-center gap-2 text-lg font-semibold text-stone-900">
+                    {project.isPaid ? (
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-rose-500" />
+                    )}
+                    <span>{project.isPaid ? "Settled" : "Open"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {project.notes ? (
+                <p className="line-clamp-3 text-sm leading-6 text-stone-600">{project.notes}</p>
+              ) : null}
+            </article>
+          )
+        })}
       </div>
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null)
+            setDeleteError("")
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Project</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-zinc-600">
-            Are you sure you want to delete{" "}
-            <span className="font-medium">&quot;{deleteTarget?.title}&quot;</span>? This action
-            cannot be undone.
+          <p className="text-sm leading-6 text-stone-600">
+            Remove <span className="font-medium text-stone-900">{deleteTarget?.title}</span> from the desk.
+            This cannot be undone.
           </p>
+          {deleteError ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {deleteError}
+            </div>
+          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? "Deleting..." : "Delete"}
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting..." : "Delete project"}
             </Button>
           </DialogFooter>
         </DialogContent>

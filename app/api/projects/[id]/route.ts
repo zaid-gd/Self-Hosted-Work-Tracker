@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireUserId, unauthorizedResponse } from "@/lib/auth"
 import { ProjectSchema } from "@/lib/validators"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const { id } = await params
-    const project = await prisma.project.findUnique({
-      where: { id },
+    const project = await prisma.project.findFirst({
+      where: { id, userId },
       include: {
         client: true,
       },
@@ -25,18 +29,40 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const { id } = await params
     const body = await req.json()
     const data = ProjectSchema.partial().parse(body)
 
-    const project = await prisma.project.update({
-      where: { id },
+    if (data.clientId) {
+      const client = await prisma.client.findFirst({
+        where: { id: data.clientId, userId },
+        select: { id: true },
+      })
+
+      if (!client) {
+        return NextResponse.json({ error: "Client not found" }, { status: 404 })
+      }
+    }
+
+    const result = await prisma.project.updateMany({
+      where: { id, userId },
       data: {
         ...data,
         agreedAmount: data.agreedAmount !== undefined ? (data.agreedAmount ?? null) : undefined,
         dueDate: data.dueDate !== undefined ? (data.dueDate ?? null) : undefined,
         completedAt: data.completedAt !== undefined ? (data.completedAt ?? null) : undefined,
       },
+    })
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    }
+
+    const project = await prisma.project.findFirst({
+      where: { id, userId },
       include: {
         client: { select: { id: true, name: true } },
       },
@@ -54,8 +80,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const { id } = await params
-    await prisma.project.delete({ where: { id } })
+    const result = await prisma.project.deleteMany({ where: { id, userId } })
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    }
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("DELETE /api/projects/[id] error:", error)

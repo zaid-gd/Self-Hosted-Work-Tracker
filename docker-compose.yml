@@ -1,13 +1,28 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: edittracker
+      POSTGRES_USER: edittracker
+      POSTGRES_PASSWORD: edittracker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edittracker -d edittracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   edittracker:
     build: .
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: file:/data/edittracker.db
-    volumes:
-      - edittracker_data:/data
+      DATABASE_URL: postgresql://edittracker:edittracker@postgres:5432/edittracker?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
-  edittracker_data:
+  postgres_data:

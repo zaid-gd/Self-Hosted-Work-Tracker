@@ -3,6 +3,7 @@ export type PaymentType = "PAID_ADVANCE" | "UNPAID" | "FREE" | "SALARY"
 
 export interface Client {
   id: string
+  userId: string
   name: string
   contactEmail: string | null
   notes: string | null
@@ -12,6 +13,7 @@ export interface Client {
 
 export interface Project {
   id: string
+  userId: string
   title: string
   clientId: string
   client: { id: string; name: string }
@@ -26,6 +28,19 @@ export interface Project {
   dueDate: string | null
   completedAt: string | null
   updatedAt: string
+}
+
+export interface ProjectAttachment {
+  id: string
+  userId: string
+  projectId: string
+  fileName: string
+  storagePath: string
+  bucket: string
+  mimeType: string | null
+  sizeBytes: number | null
+  createdAt: string
+  signedUrl?: string | null
 }
 
 export interface ProjectWithClient extends Project {

@@ -1,11 +1,17 @@
 import { prisma } from "@/lib/prisma"
+import { auth } from "@clerk/nextjs/server"
 import { ProjectForm } from "@/components/projects/ProjectForm"
 import type { Client } from "@/types"
 
+export const dynamic = "force-dynamic"
+
 export default async function NewProjectPage() {
+  const { userId } = await auth()
+
   const clientsRaw = await prisma.client.findMany({
+    where: { userId: userId ?? "" },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, contactEmail: true, notes: true, createdAt: true, updatedAt: true },
+    select: { id: true, userId: true, name: true, contactEmail: true, notes: true, createdAt: true, updatedAt: true },
   })
 
   // Convert dates to strings

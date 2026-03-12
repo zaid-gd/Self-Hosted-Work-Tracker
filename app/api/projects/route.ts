@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireUserId, unauthorizedResponse } from "@/lib/auth"
 import { ProjectSchema } from "@/lib/validators"
 
 export async function GET(req: NextRequest) {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const { searchParams } = new URL(req.url)
     const status = searchParams.get("status")
     const paymentType = searchParams.get("paymentType")
@@ -13,7 +17,7 @@ export async function GET(req: NextRequest) {
     const sort = searchParams.get("sort") || "createdAt_desc"
 
     // Build where clause
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = { userId }
 
     if (status) where.status = status
     if (paymentType) where.paymentType = paymentType
@@ -64,12 +68,25 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const body = await req.json()
     const data = ProjectSchema.parse(body)
+
+    const client = await prisma.client.findFirst({
+      where: { id: data.clientId, userId },
+      select: { id: true },
+    })
+
+    if (!client) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 })
+    }
 
     const project = await prisma.project.create({
       data: {
         ...data,
+        userId,
         agreedAmount: data.agreedAmount ?? null,
         dueDate: data.dueDate ?? null,
         completedAt: data.completedAt ?? null,

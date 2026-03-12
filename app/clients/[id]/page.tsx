@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 import { formatDate } from "@/lib/utils"
 import Link from "next/link"
@@ -11,8 +12,9 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const client = await prisma.client.findUnique({
-    where: { id },
+  const { userId } = await auth()
+  const client = await prisma.client.findFirst({
+    where: { id, userId: userId ?? "" },
     include: {
       _count: { select: { projects: true } },
     },

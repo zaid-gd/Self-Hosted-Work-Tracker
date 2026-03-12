@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireUserId, unauthorizedResponse } from "@/lib/auth"
 import { ClientSchema } from "@/lib/validators"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const { id } = await params
-    const client = await prisma.client.findUnique({
-      where: { id },
+    const client = await prisma.client.findFirst({
+      where: { id, userId },
       include: {
         projects: {
           include: { client: { select: { id: true, name: true } } },
@@ -28,15 +32,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const { id } = await params
     const body = await req.json()
     const data = ClientSchema.partial().parse(body)
 
-    const client = await prisma.client.update({
-      where: { id },
+    const result = await prisma.client.updateMany({
+      where: { id, userId },
       data,
     })
 
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 })
+    }
+
+    const client = await prisma.client.findFirst({ where: { id, userId } })
     return NextResponse.json(client)
   } catch (error: unknown) {
     if (error instanceof Error && error.name === "ZodError") {
@@ -49,8 +61,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const userId = await requireUserId()
+    if (!userId) return unauthorizedResponse()
+
     const { id } = await params
-    await prisma.client.delete({ where: { id } })
+    const result = await prisma.client.deleteMany({ where: { id, userId } })
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 })
+    }
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("DELETE /api/clients/[id] error:", error)

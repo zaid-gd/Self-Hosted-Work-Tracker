@@ -3,25 +3,29 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Client {
   id           String    @id @default(cuid())
+  userId       String
   name         String
   contactEmail String?
   notes        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   projects     Project[]
+
+  @@index([userId])
 }
 
 model Project {
   id           String   @id @default(cuid())
+  userId       String
   title        String
   clientId     String
-  client       Client   @relation(fields: [clientId], references: [id])
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   status       String   @default("PLANNED")
   paymentType  String   @default("UNPAID")
   agreedAmount Float?
@@ -33,4 +37,24 @@ model Project {
   dueDate      DateTime?
   completedAt  DateTime?
   updatedAt    DateTime @updatedAt
+  attachments  ProjectAttachment[]
+
+  @@index([userId])
+  @@index([clientId])
+}
+
+model ProjectAttachment {
+  id          String   @id @default(cuid())
+  userId      String
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileName    String
+  storagePath String   @unique
+  bucket      String
+  mimeType    String?
+  sizeBytes   Int?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([projectId])
 }

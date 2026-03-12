@@ -3,16 +3,17 @@ import { PrismaClient } from "@prisma/client"
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log("🌱 Seeding database...")
+  const seedUserId = process.env.SEED_USER_ID || "demo_user"
+  console.log(`Seeding database for ${seedUserId}...`)
 
-  // Clear existing data
+  await prisma.projectAttachment.deleteMany()
   await prisma.project.deleteMany()
   await prisma.client.deleteMany()
 
-  // Create clients
   const clients = await Promise.all([
     prisma.client.create({
       data: {
+        userId: seedUserId,
         name: "Sharma Productions",
         contactEmail: "sharma@productions.in",
         notes: "Wedding specialists, Rajasthan. Pays on delivery.",
@@ -20,20 +21,23 @@ async function main() {
     }),
     prisma.client.create({
       data: {
+        userId: seedUserId,
         name: "Dream Frames Studio",
         contactEmail: "hello@dreamframes.in",
-        notes: "Corporate + product videos. Monthly billing.",
+        notes: "Corporate and product videos. Monthly billing.",
       },
     }),
     prisma.client.create({
       data: {
+        userId: seedUserId,
         name: "Reels by Rohan",
         contactEmail: "rohan@reelsby.me",
-        notes: "Instagram reels content creator. Quick turnaround needed.",
+        notes: "Instagram reels creator. Quick turnaround needed.",
       },
     }),
     prisma.client.create({
       data: {
+        userId: seedUserId,
         name: "Vrindavan Films",
         contactEmail: null,
         notes: "Long-form documentary films. Salary arrangement.",
@@ -46,11 +50,10 @@ async function main() {
   const past = (days: number) => new Date(now.getTime() - days * 86400000)
   const future = (days: number) => new Date(now.getTime() + days * 86400000)
 
-  // Projects
   await prisma.project.createMany({
     data: [
-      // Sharma Productions
       {
+        userId: seedUserId,
         title: "Mehra Wedding Highlight Film",
         clientId: sharma.id,
         status: "DELIVERED",
@@ -59,11 +62,12 @@ async function main() {
         currency: "INR",
         isPaid: true,
         tags: "wedding,highlight,4k",
-        notes: "3-min highlight + teaser reel. Delivered on time.",
+        notes: "3-min highlight and teaser reel. Delivered on time.",
         dueDate: past(20),
         completedAt: past(22),
       },
       {
+        userId: seedUserId,
         title: "Gupta Engagement Teaser",
         clientId: sharma.id,
         status: "DELIVERED",
@@ -77,6 +81,7 @@ async function main() {
         completedAt: past(12),
       },
       {
+        userId: seedUserId,
         title: "Patel Pre-Wedding Reel",
         clientId: sharma.id,
         status: "IN_PROGRESS",
@@ -85,11 +90,12 @@ async function main() {
         currency: "INR",
         isPaid: false,
         tags: "pre-wedding,reel",
-        notes: "50% advance received. Edit in progress.",
+        notes: "50 percent advance received. Edit in progress.",
         dueDate: future(7),
         completedAt: null,
       },
       {
+        userId: seedUserId,
         title: "Shah Anniversary Film",
         clientId: sharma.id,
         status: "PLANNED",
@@ -102,9 +108,9 @@ async function main() {
         dueDate: future(21),
         completedAt: null,
       },
-      // Dream Frames Studio
       {
-        title: "TechCorp Product Launch — Q1",
+        userId: seedUserId,
+        title: "TechCorp Product Launch - Q1",
         clientId: dreamframes.id,
         status: "DELIVERED",
         paymentType: "PAID_ADVANCE",
@@ -117,6 +123,7 @@ async function main() {
         completedAt: past(47),
       },
       {
+        userId: seedUserId,
         title: "UrbanEats Brand Video",
         clientId: dreamframes.id,
         status: "IN_PROGRESS",
@@ -125,11 +132,12 @@ async function main() {
         currency: "INR",
         isPaid: false,
         tags: "brand,food,corporate",
-        notes: "2-min product video + social cuts.",
+        notes: "2-minute product video and social cuts.",
         dueDate: future(14),
         completedAt: null,
       },
       {
+        userId: seedUserId,
         title: "GreenTech CSR Documentary",
         clientId: dreamframes.id,
         status: "PLANNED",
@@ -138,12 +146,13 @@ async function main() {
         currency: "INR",
         isPaid: false,
         tags: "documentary,csr",
-        notes: "Shooting starts next month. Long form ~20min.",
+        notes: "Shooting starts next month. Long form around 20 minutes.",
         dueDate: future(60),
         completedAt: null,
       },
       {
-        title: "Monthly Social Pack — February",
+        userId: seedUserId,
+        title: "Monthly Social Pack - February",
         clientId: dreamframes.id,
         status: "DELIVERED",
         paymentType: "PAID_ADVANCE",
@@ -151,12 +160,12 @@ async function main() {
         currency: "INR",
         isPaid: true,
         tags: "social,monthly,reels",
-        notes: "10 reels + 5 stories. Ongoing retainer.",
+        notes: "10 reels and 5 stories. Ongoing retainer.",
         dueDate: past(15),
         completedAt: past(14),
       },
-      // Reels by Rohan
       {
+        userId: seedUserId,
         title: "Weekly Reels Batch #1",
         clientId: reels.id,
         status: "DELIVERED",
@@ -170,6 +179,7 @@ async function main() {
         completedAt: past(6),
       },
       {
+        userId: seedUserId,
         title: "Weekly Reels Batch #2",
         clientId: reels.id,
         status: "DELIVERED",
@@ -183,6 +193,7 @@ async function main() {
         completedAt: past(3),
       },
       {
+        userId: seedUserId,
         title: "Weekly Reels Batch #3",
         clientId: reels.id,
         status: "IN_PROGRESS",
@@ -196,7 +207,8 @@ async function main() {
         completedAt: null,
       },
       {
-        title: "Favour — Birthday Reel for Friend",
+        userId: seedUserId,
+        title: "Favor - Birthday Reel for Friend",
         clientId: reels.id,
         status: "DELIVERED",
         paymentType: "FREE",
@@ -204,13 +216,13 @@ async function main() {
         currency: "INR",
         isPaid: false,
         tags: "free,personal",
-        notes: "Done as a favour, no charge.",
+        notes: "Done as a favor, no charge.",
         dueDate: past(8),
         completedAt: past(8),
       },
-      // Vrindavan Films
       {
-        title: "River of Stories — Month 1",
+        userId: seedUserId,
+        title: "River of Stories - Month 1",
         clientId: vrindavan.id,
         status: "DELIVERED",
         paymentType: "SALARY",
@@ -223,7 +235,8 @@ async function main() {
         completedAt: past(30),
       },
       {
-        title: "River of Stories — Month 2",
+        userId: seedUserId,
+        title: "River of Stories - Month 2",
         clientId: vrindavan.id,
         status: "DELIVERED",
         paymentType: "SALARY",
@@ -236,7 +249,8 @@ async function main() {
         completedAt: past(1),
       },
       {
-        title: "River of Stories — Month 3",
+        userId: seedUserId,
+        title: "River of Stories - Month 3",
         clientId: vrindavan.id,
         status: "IN_PROGRESS",
         paymentType: "SALARY",
@@ -252,12 +266,12 @@ async function main() {
   })
 
   const projectCount = await prisma.project.count()
-  console.log(`✅ Seeded ${clients.length} clients and ${projectCount} projects`)
+  console.log(`Seeded ${clients.length} clients and ${projectCount} projects`)
 }
 
 main()
-  .catch((e) => {
-    console.error(e)
+  .catch((error) => {
+    console.error(error)
     process.exit(1)
   })
   .finally(async () => {

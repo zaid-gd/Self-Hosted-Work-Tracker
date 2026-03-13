@@ -29,3 +29,19 @@ export function formatDateInput(date: string | Date | null | undefined): string 
   const d = new Date(date)
   return d.toISOString().split("T")[0]
 }
+
+export function formatCurrencyTotals(
+  totals: Record<string, number> | Array<{ currency: string; amount: number }>
+): string {
+  const entries = Array.isArray(totals)
+    ? totals.map((total) => [total.currency, total.amount] as const)
+    : Object.entries(totals)
+
+  if (entries.length === 0) return "—"
+
+  return entries
+    .filter(([, amount]) => amount !== 0)
+    .sort(([currencyA], [currencyB]) => currencyA.localeCompare(currencyB))
+    .map(([currency, amount]) => formatCurrency(amount, currency))
+    .join(" • ")
+}

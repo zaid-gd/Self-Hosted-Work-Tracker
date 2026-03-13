@@ -2,7 +2,7 @@ import { PaymentTypeBadge } from "@/components/projects/PaymentTypeBadge"
 import { ProjectStatusBadge } from "@/components/projects/ProjectStatusBadge"
 import { getOptionalUserId } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatCurrencyTotals } from "@/lib/utils"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
@@ -30,6 +30,16 @@ export default async function ClientDetailPage({
   const unpaidValue = client.projects
     .filter((project) => !project.isPaid && project.agreedAmount != null)
     .reduce((sum, project) => sum + (project.agreedAmount ?? 0), 0)
+  const totalsByCurrency = client.projects.reduce<Record<string, number>>((accumulator, project) => {
+    if (project.agreedAmount == null) return accumulator
+    accumulator[project.currency] = (accumulator[project.currency] ?? 0) + project.agreedAmount
+    return accumulator
+  }, {})
+  const unpaidByCurrency = client.projects.reduce<Record<string, number>>((accumulator, project) => {
+    if (project.isPaid || project.agreedAmount == null) return accumulator
+    accumulator[project.currency] = (accumulator[project.currency] ?? 0) + project.agreedAmount
+    return accumulator
+  }, {})
 
   return (
     <div className="page-wrap">
@@ -50,8 +60,16 @@ export default async function ClientDetailPage({
 
       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
         <span className="tabular-nums">{client.projects.length} projects</span>
-        <span className="tabular-nums text-foreground">{formatCurrency(totalValue, "INR")}</span>
-        <span className="tabular-nums text-red-300">{formatCurrency(unpaidValue, "INR")}</span>
+        <span className="tabular-nums text-foreground">
+          {Object.keys(totalsByCurrency).length === 1
+            ? formatCurrency(totalValue, Object.keys(totalsByCurrency)[0])
+            : formatCurrencyTotals(totalsByCurrency)}
+        </span>
+        <span className="tabular-nums text-red-300">
+          {Object.keys(unpaidByCurrency).length === 1
+            ? formatCurrency(unpaidValue, Object.keys(unpaidByCurrency)[0])
+            : formatCurrencyTotals(unpaidByCurrency)}
+        </span>
       </div>
 
       <section className="table-shell">

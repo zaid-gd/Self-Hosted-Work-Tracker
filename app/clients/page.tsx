@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { getApiErrorMessage, readApiPayload } from "@/lib/api-response"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrencyTotals } from "@/lib/utils"
 import type { Client } from "@/types"
 import { Pencil, Plus, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 
 type ClientWithStats = Client & {
   projectCount?: number
-  totalAgreedAmount?: number
+  totalsByCurrency?: Record<string, number>
 }
 
 export default function ClientsPage() {
@@ -54,10 +54,15 @@ export default function ClientsPage() {
     fetchClients()
   }, [fetchClients])
 
-  const totalValue = useMemo(
-    () => clients.reduce((sum, client) => sum + (client.totalAgreedAmount ?? 0), 0),
-    [clients]
-  )
+  const totalsByCurrency = useMemo(() => {
+    return clients.reduce<Record<string, number>>((accumulator, client) => {
+      for (const [currency, amount] of Object.entries(client.totalsByCurrency ?? {})) {
+        accumulator[currency] = (accumulator[currency] ?? 0) + amount
+      }
+
+      return accumulator
+    }, {})
+  }, [clients])
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -125,10 +130,10 @@ export default function ClientsPage() {
                   <td className="text-muted-foreground">{client.contactEmail || "-"}</td>
                   <td className="text-right tabular-nums text-foreground">{client.projectCount ?? 0}</td>
                   <td className="text-right font-medium tabular-nums text-foreground">
-                    {formatCurrency(client.totalAgreedAmount ?? 0, "INR")}
+                    {formatCurrencyTotals(client.totalsByCurrency ?? {})}
                   </td>
                   <td>
-                    <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -165,7 +170,7 @@ export default function ClientsPage() {
                   {clients.reduce((sum, client) => sum + (client.projectCount ?? 0), 0)}
                 </td>
                 <td className="border-t border-border px-3 py-2 text-right font-medium tabular-nums text-foreground">
-                  {formatCurrency(totalValue, "INR")}
+                  {formatCurrencyTotals(totalsByCurrency)}
                 </td>
                 <td className="border-t border-border px-3 py-2" />
               </tr>

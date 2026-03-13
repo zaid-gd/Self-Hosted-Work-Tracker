@@ -14,7 +14,7 @@ export async function GET() {
       include: {
         _count: { select: { projects: true } },
         projects: {
-          select: { agreedAmount: true },
+          select: { agreedAmount: true, currency: true },
         },
       },
       orderBy: { name: "asc" },
@@ -23,7 +23,11 @@ export async function GET() {
     const clientsWithStats = clients.map((c) => ({
       ...c,
       projectCount: c._count.projects,
-      totalAgreedAmount: c.projects.reduce((sum, p) => sum + (p.agreedAmount ?? 0), 0),
+      totalsByCurrency: c.projects.reduce<Record<string, number>>((totals, project) => {
+        if (project.agreedAmount == null) return totals
+        totals[project.currency] = (totals[project.currency] ?? 0) + project.agreedAmount
+        return totals
+      }, {}),
     }))
 
     return NextResponse.json(clientsWithStats)

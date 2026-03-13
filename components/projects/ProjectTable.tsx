@@ -120,7 +120,7 @@ export function ProjectTable({ projects, onDelete }: Props) {
                 </td>
                 <td className="tabular-nums text-muted-foreground">{formatDate(project.dueDate)}</td>
                 <td>
-                  <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
                     <Button
                       variant="ghost"
                       size="icon-sm"

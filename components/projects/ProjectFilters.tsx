@@ -37,18 +37,26 @@ const STATUS_TABS = [
 
 export function ProjectFilters({ clients, filters, onChange }: Props) {
   const [search, setSearch] = useState(filters.search)
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search)
 
   useEffect(() => {
     setSearch(filters.search)
+    setDebouncedSearch(filters.search)
   }, [filters.search])
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      onChange({ ...filters, search })
+      setDebouncedSearch(search)
     }, 180)
 
     return () => clearTimeout(timer)
-  }, [filters, onChange, search])
+  }, [search])
+
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) {
+      onChange({ ...filters, search: debouncedSearch })
+    }
+  }, [debouncedSearch, filters, onChange])
 
   return (
     <section className="surface-panel rounded-xl px-3 py-2">

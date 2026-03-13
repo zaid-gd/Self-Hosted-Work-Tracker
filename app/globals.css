@@ -153,7 +153,7 @@
   }
 
   .table-shell {
-    @apply overflow-hidden rounded-xl border border-border bg-card;
+    @apply overflow-x-auto overflow-y-hidden rounded-xl border border-border bg-card;
   }
 
   .data-table {

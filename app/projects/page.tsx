@@ -27,7 +27,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
-  const fetchData = useCallback(async () => {
+  const fetchProjects = useCallback(async () => {
     setLoading(true)
     setError("")
 
@@ -40,15 +40,8 @@ export default function ProjectsPage() {
       if (filters.unpaidOnly) params.set("isPaid", "false")
       params.set("sort", filters.sort)
 
-      const [projectsResponse, clientsResponse] = await Promise.all([
-        fetch(`/api/projects?${params.toString()}`),
-        fetch("/api/clients"),
-      ])
-
-      const [projectsPayload, clientsPayload] = await Promise.all([
-        readApiPayload(projectsResponse),
-        readApiPayload(clientsResponse),
-      ])
+      const projectsResponse = await fetch(`/api/projects?${params.toString()}`)
+      const projectsPayload = await readApiPayload(projectsResponse)
 
       if (!projectsResponse.ok) {
         throw new Error(
@@ -56,26 +49,39 @@ export default function ProjectsPage() {
         )
       }
 
+      setProjects(Array.isArray(projectsPayload) ? projectsPayload : [])
+    } catch (issue) {
+      setError(issue instanceof Error ? issue.message : "Failed to load projects")
+      setProjects([])
+    } finally {
+      setLoading(false)
+    }
+  }, [filters])
+
+  const fetchClients = useCallback(async () => {
+    try {
+      const clientsResponse = await fetch("/api/clients")
+      const clientsPayload = await readApiPayload(clientsResponse)
+
       if (!clientsResponse.ok) {
         throw new Error(
           getApiErrorMessage(clientsResponse, clientsPayload, "Failed to load clients")
         )
       }
 
-      setProjects(Array.isArray(projectsPayload) ? projectsPayload : [])
       setClients(Array.isArray(clientsPayload) ? clientsPayload : [])
-    } catch (issue) {
-      setError(issue instanceof Error ? issue.message : "Failed to load workspace")
-      setProjects([])
+    } catch {
       setClients([])
-    } finally {
-      setLoading(false)
     }
-  }, [filters])
+  }, [])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchProjects()
+  }, [fetchProjects])
+
+  useEffect(() => {
+    fetchClients()
+  }, [fetchClients])
 
   const totalProjects = projects.length
   const unpaidCount = projects.filter(

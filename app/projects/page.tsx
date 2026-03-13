@@ -4,10 +4,11 @@ import { KpiCards } from "@/components/dashboard/KpiCards"
 import { ProjectFilters, type Filters } from "@/components/projects/ProjectFilters"
 import { ProjectTable } from "@/components/projects/ProjectTable"
 import { Button } from "@/components/ui/button"
+import { getApiErrorMessage, readApiPayload } from "@/lib/api-response"
 import type { Client, Project } from "@/types"
-import { ArrowRight, Plus, Wallet } from "lucide-react"
+import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 const DEFAULT_FILTERS: Filters = {
   search: "",
@@ -45,20 +46,24 @@ export default function ProjectsPage() {
       ])
 
       const [projectsPayload, clientsPayload] = await Promise.all([
-        projectsResponse.json(),
-        clientsResponse.json(),
+        readApiPayload(projectsResponse),
+        readApiPayload(clientsResponse),
       ])
 
       if (!projectsResponse.ok) {
-        throw new Error(projectsPayload.error ?? "Failed to load projects")
+        throw new Error(
+          getApiErrorMessage(projectsResponse, projectsPayload, "Failed to load projects")
+        )
       }
 
       if (!clientsResponse.ok) {
-        throw new Error(clientsPayload.error ?? "Failed to load clients")
+        throw new Error(
+          getApiErrorMessage(clientsResponse, clientsPayload, "Failed to load clients")
+        )
       }
 
-      setProjects(projectsPayload)
-      setClients(clientsPayload)
+      setProjects(Array.isArray(projectsPayload) ? projectsPayload : [])
+      setClients(Array.isArray(clientsPayload) ? clientsPayload : [])
     } catch (issue) {
       setError(issue instanceof Error ? issue.message : "Failed to load workspace")
       setProjects([])
@@ -81,82 +86,21 @@ export default function ProjectsPage() {
     .filter((project) => project.isPaid && project.agreedAmount != null)
     .reduce((sum, project) => sum + (project.agreedAmount ?? 0), 0)
 
-  const dueSoonCount = useMemo(() => {
-    const now = Date.now()
-    const sevenDaysFromNow = now + 7 * 24 * 60 * 60 * 1000
-
-    return projects.filter((project) => {
-      if (!project.dueDate || project.status === "DELIVERED" || project.status === "CANCELLED") {
-        return false
-      }
-
-      const dueAt = new Date(project.dueDate).getTime()
-      return dueAt >= now && dueAt <= sevenDaysFromNow
-    }).length
-  }, [projects])
-
-  const activeClientCount = useMemo(
-    () => new Set(projects.map((project) => project.client.id)).size,
-    [projects]
-  )
-
   async function handleDelete(id: string) {
     setProjects((current) => current.filter((project) => project.id !== id))
   }
 
   return (
-    <div className="page-wrap space-y-6">
-      <section className="surface-panel overflow-hidden p-6 lg:p-8">
-        <div className="grid gap-8 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,0.9fr)]">
-          <div className="space-y-5">
-            <div>
-              <p className="eyebrow">Work Ledger</p>
-              <h1 className="mt-2 max-w-3xl text-4xl leading-tight text-stone-900 lg:text-5xl">
-                Run projects like a calm studio, not a crowded spreadsheet.
-              </h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600">
-                Keep delivery status, client context, due dates, and payment posture visible in one place so the next decision stays obvious.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={() => router.push("/projects/new")}>
-                <Plus className="mr-2 h-4 w-4" />
-                New project
-              </Button>
-              <Button variant="outline" className="border-stone-200" onClick={() => router.push("/clients")}>
-                Review clients
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <aside className="rounded-[28px] border border-stone-200 bg-white/80 p-5 backdrop-blur">
-            <p className="eyebrow">This Week</p>
-            <div className="mt-4 space-y-4">
-              <div className="rounded-2xl bg-stone-50 p-4">
-                <p className="text-sm text-stone-500">Due soon</p>
-                <p className="mt-2 text-3xl font-semibold text-stone-900">{dueSoonCount}</p>
-              </div>
-              <div className="rounded-2xl bg-stone-50 p-4">
-                <p className="text-sm text-stone-500">Active clients</p>
-                <p className="mt-2 text-3xl font-semibold text-stone-900">{activeClientCount}</p>
-              </div>
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4" />
-                  <p className="text-sm font-medium">Collection focus</p>
-                </div>
-                <p className="mt-2 text-sm leading-6">
-                  {unpaidCount === 0
-                    ? "No unpaid items are currently sitting on the board."
-                    : `${unpaidCount} project${unpaidCount === 1 ? "" : "s"} still need payment follow-up.`}
-                </p>
-              </div>
-            </div>
-          </aside>
+    <div className="page-wrap">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl text-foreground">Projects</h1>
         </div>
-      </section>
+        <Button className="h-8 rounded-md px-3" size="sm" onClick={() => router.push("/projects/new")}>
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          New Project
+        </Button>
+      </div>
 
       <KpiCards
         totalProjects={totalProjects}
@@ -169,17 +113,13 @@ export default function ProjectsPage() {
       <ProjectFilters clients={clients} filters={filters} onChange={setFilters} />
 
       {error ? (
-        <section className="surface-panel p-5">
-          <p className="eyebrow">Load Error</p>
-          <p className="mt-2 text-sm leading-6 text-rose-700">{error}</p>
-          <Button className="mt-4" variant="outline" onClick={fetchData}>
-            Try again
-          </Button>
+        <section className="surface-panel rounded-lg px-3 py-3 text-sm text-red-300">
+          {error}
         </section>
       ) : null}
 
       {loading ? (
-        <section className="surface-panel p-12 text-center text-sm text-stone-500">
+        <section className="surface-panel rounded-lg px-3 py-3 text-sm text-muted-foreground">
           Loading projects...
         </section>
       ) : (

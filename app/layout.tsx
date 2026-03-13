@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
-import { Geist } from "next/font/google"
 import { ClerkProvider } from "@clerk/nextjs"
-import { auth } from "@clerk/nextjs/server"
-import "./globals.css"
+import { Geist } from "next/font/google"
 import { Sidebar } from "@/components/layout/Sidebar"
-import { TopBar } from "@/components/layout/TopBar"
+import { CLERK_MISSING_ENV_MESSAGE, hasClerkEnv } from "@/lib/clerk-config"
+import { getOptionalUserId, isLocalAuthFallbackEnabled } from "@/lib/auth"
+import "./globals.css"
 
 const geist = Geist({
   variable: "--font-geist-sans",
@@ -21,23 +21,52 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const { userId } = await auth()
-  const isSignedIn = Boolean(userId)
+  const clerkReady = hasClerkEnv()
+  const localFallback = isLocalAuthFallbackEnabled()
+  const isSignedIn = Boolean(await getOptionalUserId())
 
-  return (
-    <html lang="en">
-      <body className={`${geist.variable} antialiased bg-zinc-50`}>
-        <ClerkProvider>
+  if (!clerkReady && !localFallback) {
+    return (
+      <html lang="en" className="dark">
+        <body className={`${geist.variable} bg-background text-foreground`}>
+          <main className="page-wrap min-h-screen justify-center">
+            <section className="surface-panel rounded-lg px-4 py-4 text-sm text-red-300">
+              {CLERK_MISSING_ENV_MESSAGE}
+            </section>
+          </main>
+        </body>
+      </html>
+    )
+  }
+
+  if (!clerkReady && localFallback) {
+    return (
+      <html lang="en" className="dark">
+        <body className={`${geist.variable} bg-background text-foreground`}>
           {isSignedIn ? (
-            <div className="flex h-screen overflow-hidden">
-              <Sidebar />
-              <div className="flex flex-1 flex-col overflow-hidden">
-                <TopBar />
-                <main className="flex-1 overflow-y-auto">{children}</main>
-              </div>
+            <div className="min-h-screen bg-background lg:pl-52">
+              <Sidebar showUserButton={false} />
+              <main className="min-h-screen">{children}</main>
             </div>
           ) : (
-            <main>{children}</main>
+            <main className="min-h-screen">{children}</main>
+          )}
+        </body>
+      </html>
+    )
+  }
+
+  return (
+    <html lang="en" className="dark">
+      <body className={`${geist.variable} bg-background text-foreground`}>
+        <ClerkProvider>
+          {isSignedIn ? (
+            <div className="min-h-screen bg-background lg:pl-52">
+              <Sidebar />
+              <main className="min-h-screen">{children}</main>
+            </div>
+          ) : (
+            <main className="min-h-screen">{children}</main>
           )}
         </ClerkProvider>
       </body>

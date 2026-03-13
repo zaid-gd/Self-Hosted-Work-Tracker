@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { getApiErrorMessage, readApiPayload } from "@/lib/api-response"
 import type { ProjectAttachment } from "@/types"
 import { Download, Loader2, Trash2, Upload } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -35,13 +36,13 @@ export function ProjectFiles({ projectId }: Props) {
 
     try {
       const response = await fetch(`/api/projects/${projectId}/files`)
-      const payload = await response.json()
+      const payload = await readApiPayload(response)
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load files")
+        throw new Error(getApiErrorMessage(response, payload, "Failed to load files"))
       }
 
-      setFiles(payload)
+      setFiles(Array.isArray(payload) ? payload : [])
     } catch (issue) {
       setError(issue instanceof Error ? issue.message : "Failed to load files")
     } finally {
@@ -69,13 +70,17 @@ export function ProjectFiles({ projectId }: Props) {
           method: "POST",
           body: formData,
         })
-        const payload = await response.json()
+        const payload = await readApiPayload(response)
 
         if (!response.ok) {
-          throw new Error(payload.error ?? `Failed to upload ${file.name}`)
+          throw new Error(
+            getApiErrorMessage(response, payload, `Failed to upload ${file.name}`)
+          )
         }
 
-        setFiles((current) => [payload, ...current])
+        if (payload && typeof payload === "object") {
+          setFiles((current) => [payload as ProjectAttachment, ...current])
+        }
       }
 
       event.target.value = ""
@@ -93,10 +98,10 @@ export function ProjectFiles({ projectId }: Props) {
       const response = await fetch(`/api/projects/${projectId}/files/${fileId}`, {
         method: "DELETE",
       })
-      const payload = await response.json()
+      const payload = await readApiPayload(response)
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to delete file")
+        throw new Error(getApiErrorMessage(response, payload, "Failed to delete file"))
       }
 
       setFiles((current) => current.filter((file) => file.id !== fileId))
@@ -106,83 +111,66 @@ export function ProjectFiles({ projectId }: Props) {
   }
 
   return (
-    <section className="surface-panel p-5">
-      <div className="flex flex-col gap-4 border-b border-stone-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="eyebrow">Project Archive</p>
-          <h2 className="mt-1 text-2xl text-stone-900">Cloud files for this delivery.</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Keep exports, source files, drafts, and final handoff material attached to the project so the record stays complete.
-          </p>
-        </div>
+    <section className="surface-panel overflow-hidden rounded-lg">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <h2 className="text-sm font-medium text-foreground">Files</h2>
         <label className="inline-flex">
-          <input
-            type="file"
-            className="hidden"
-            multiple
-            onChange={handleUpload}
-            disabled={uploading}
-          />
+          <input type="file" className="hidden" multiple onChange={handleUpload} disabled={uploading} />
           <span>
-            <Button type="button" disabled={uploading}>
-              {uploading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="mr-2 h-4 w-4" />
-              )}
-              Upload files
+            <Button type="button" className="h-7 rounded-md px-2.5" size="sm" disabled={uploading}>
+              {uploading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1 h-3.5 w-3.5" />}
+              Upload
             </Button>
           </span>
         </label>
       </div>
 
-      {error ? (
-        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className="px-3 py-2 text-sm text-red-300">{error}</div> : null}
 
       {loading ? (
-        <div className="py-8 text-sm text-stone-500">Loading files...</div>
+        <div className="px-3 py-3 text-sm text-muted-foreground">Loading files...</div>
       ) : files.length === 0 ? (
-        <div className="py-8 text-sm leading-6 text-stone-500">
-          No files uploaded yet. Add deliverables or working files to keep this project complete in the cloud.
-        </div>
+        <div className="px-3 py-3 text-sm text-muted-foreground">No files uploaded.</div>
       ) : (
-        <div className="mt-4 grid gap-3">
-          {files.map((file) => (
-            <div
-              key={file.id}
-              className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-base font-medium text-stone-900">{file.fileName}</p>
-                <p className="mt-1 text-sm text-stone-500">
-                  {formatBytes(file.sizeBytes)}
-                  {file.mimeType ? ` · ${file.mimeType}` : ""}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {file.signedUrl ? (
-                  <a href={file.signedUrl} target="_blank" rel="noreferrer">
-                    <Button type="button" variant="outline" className="border-stone-200">
-                      <Download className="mr-2 h-4 w-4" />
-                      Download
+        <table className="data-table">
+          <thead className="bg-zinc-900/80">
+            <tr>
+              <th>File</th>
+              <th>Type</th>
+              <th className="text-right">Size</th>
+              <th className="w-[120px] text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {files.map((file) => (
+              <tr key={file.id} className="group hover:bg-zinc-900/55">
+                <td className="font-medium text-foreground">{file.fileName}</td>
+                <td className="text-muted-foreground">{file.mimeType || "-"}</td>
+                <td className="text-right tabular-nums text-muted-foreground">{formatBytes(file.sizeBytes)}</td>
+                <td>
+                  <div className="flex justify-end gap-1">
+                    {file.signedUrl ? (
+                      <a href={file.signedUrl} target="_blank" rel="noreferrer">
+                        <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:bg-zinc-800 hover:text-foreground">
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </a>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-red-400 hover:bg-red-950 hover:text-red-300"
+                      onClick={() => handleDelete(file.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
-                  </a>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
-                  onClick={() => handleDelete(file.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </section>
   )

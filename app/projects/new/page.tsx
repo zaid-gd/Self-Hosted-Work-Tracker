@@ -1,35 +1,67 @@
-import { prisma } from "@/lib/prisma"
-import { auth } from "@clerk/nextjs/server"
 import { ProjectForm } from "@/components/projects/ProjectForm"
+import { getOptionalUserId } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { getPrismaErrorMessage } from "@/lib/prisma-errors"
 import type { Client } from "@/types"
+import Link from "next/link"
 
 export const dynamic = "force-dynamic"
 
 export default async function NewProjectPage() {
-  const { userId } = await auth()
+  const userId = await getOptionalUserId()
 
-  const clientsRaw = await prisma.client.findMany({
-    where: { userId: userId ?? "" },
-    orderBy: { name: "asc" },
-    select: { id: true, userId: true, name: true, contactEmail: true, notes: true, createdAt: true, updatedAt: true },
-  })
+  if (!userId) {
+    return null
+  }
 
-  // Convert dates to strings
-  const clients: Client[] = clientsRaw.map((c) => ({
-    ...c,
-    contactEmail: c.contactEmail ?? null,
-    notes: c.notes ?? null,
-    createdAt: c.createdAt.toISOString(),
-    updatedAt: c.updatedAt.toISOString(),
-  }))
+  try {
+    const clientsRaw = await prisma.client.findMany({
+      where: { userId },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        contactEmail: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
 
-  return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-lg font-semibold text-zinc-900">New Project</h1>
-        <p className="text-sm text-zinc-500">Add a new video editing project</p>
+    const clients: Client[] = clientsRaw.map((client) => ({
+      ...client,
+      contactEmail: client.contactEmail ?? null,
+      notes: client.notes ?? null,
+      createdAt: client.createdAt.toISOString(),
+      updatedAt: client.updatedAt.toISOString(),
+    }))
+
+    return (
+      <div className="page-wrap">
+        <div>
+          <h1 className="text-xl text-foreground">New Project</h1>
+        </div>
+
+        {clients.length === 0 ? (
+          <section className="surface-panel rounded-lg px-3 py-3 text-sm text-muted-foreground">
+            You need a client before creating a project.
+            <Link href="/clients/new" className="ml-3 font-medium text-primary hover:text-amber-300">
+              Create client
+            </Link>
+          </section>
+        ) : (
+          <ProjectForm clients={clients} />
+        )}
       </div>
-      <ProjectForm clients={clients} />
-    </div>
-  )
+    )
+  } catch (error) {
+    return (
+      <div className="page-wrap">
+        <section className="surface-panel rounded-lg px-3 py-3 text-sm text-red-300">
+          {getPrismaErrorMessage(error, "The project form could not load.")}
+        </section>
+      </div>
+    )
+  }
 }

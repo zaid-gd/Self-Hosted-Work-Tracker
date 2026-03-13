@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma"
-import { auth } from "@clerk/nextjs/server"
-import { notFound } from "next/navigation"
 import { ProjectForm } from "@/components/projects/ProjectForm"
+import { getOptionalUserId } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 import type { Client, Project } from "@/types"
+import { notFound } from "next/navigation"
 
 export default async function EditProjectPage({
   params,
@@ -10,7 +10,7 @@ export default async function EditProjectPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const { userId } = await auth()
+  const userId = await getOptionalUserId()
 
   const [projectRaw, clientsRaw] = await Promise.all([
     prisma.project.findFirst({
@@ -20,7 +20,15 @@ export default async function EditProjectPage({
     prisma.client.findMany({
       where: { userId: userId ?? "" },
       orderBy: { name: "asc" },
-      select: { id: true, userId: true, name: true, contactEmail: true, notes: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        contactEmail: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
   ])
 
@@ -38,19 +46,18 @@ export default async function EditProjectPage({
     notes: projectRaw.notes ?? null,
   }
 
-  const clients: Client[] = clientsRaw.map((c) => ({
-    ...c,
-    contactEmail: c.contactEmail ?? null,
-    notes: c.notes ?? null,
-    createdAt: c.createdAt.toISOString(),
-    updatedAt: c.updatedAt.toISOString(),
+  const clients: Client[] = clientsRaw.map((client) => ({
+    ...client,
+    contactEmail: client.contactEmail ?? null,
+    notes: client.notes ?? null,
+    createdAt: client.createdAt.toISOString(),
+    updatedAt: client.updatedAt.toISOString(),
   }))
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-lg font-semibold text-zinc-900">Edit Project</h1>
-        <p className="text-sm text-zinc-500">{project.title}</p>
+    <div className="page-wrap">
+      <div>
+        <h1 className="text-xl text-foreground">Edit Project</h1>
       </div>
       <ProjectForm clients={clients} project={project} />
     </div>

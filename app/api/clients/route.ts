@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireUserId, unauthorizedResponse } from "@/lib/auth"
+import { getPrismaErrorMessage, getPrismaErrorStatus } from "@/lib/prisma-errors"
 import { ClientSchema } from "@/lib/validators"
 
 export async function GET() {
@@ -28,7 +29,10 @@ export async function GET() {
     return NextResponse.json(clientsWithStats)
   } catch (error) {
     console.error("GET /api/clients error:", error)
-    return NextResponse.json({ error: "Failed to fetch clients" }, { status: 500 })
+    return NextResponse.json(
+      { error: getPrismaErrorMessage(error, "Failed to fetch clients") },
+      { status: getPrismaErrorStatus(error) }
+    )
   }
 }
 
@@ -49,6 +53,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: error.message }, { status: 400 })
     }
     console.error("POST /api/clients error:", error)
-    return NextResponse.json({ error: "Failed to create client" }, { status: 500 })
+    return NextResponse.json(
+      { error: getPrismaErrorMessage(error, "Failed to create client") },
+      { status: getPrismaErrorStatus(error) }
+    )
   }
 }

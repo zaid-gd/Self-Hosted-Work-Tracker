@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireUserId, unauthorizedResponse } from "@/lib/auth"
+import { getPrismaErrorMessage, getPrismaErrorStatus } from "@/lib/prisma-errors"
 import { ProjectSchema } from "@/lib/validators"
 
 export async function GET(req: NextRequest) {
@@ -62,7 +63,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(projects)
   } catch (error) {
     console.error("GET /api/projects error:", error)
-    return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 })
+    return NextResponse.json(
+      { error: getPrismaErrorMessage(error, "Failed to fetch projects") },
+      { status: getPrismaErrorStatus(error) }
+    )
   }
 }
 
@@ -104,6 +108,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: error.message }, { status: 400 })
     }
     console.error("POST /api/projects error:", error)
-    return NextResponse.json({ error: "Failed to create project" }, { status: 500 })
+    return NextResponse.json(
+      { error: getPrismaErrorMessage(error, "Failed to create project") },
+      { status: getPrismaErrorStatus(error) }
+    )
   }
 }

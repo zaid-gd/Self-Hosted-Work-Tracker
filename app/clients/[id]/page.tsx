@@ -1,10 +1,8 @@
+import { getOptionalUserId } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@clerk/nextjs/server"
-import { notFound } from "next/navigation"
-import { formatDate } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Pencil } from "lucide-react"
+import { notFound } from "next/navigation"
 
 export default async function ClientDetailPage({
   params,
@@ -12,64 +10,90 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const { userId } = await auth()
+  const userId = await getOptionalUserId()
+
   const client = await prisma.client.findFirst({
     where: { id, userId: userId ?? "" },
     include: {
-      _count: { select: { projects: true } },
+      projects: {
+        include: { client: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "desc" },
+      },
     },
   })
 
   if (!client) return notFound()
 
+  const totalValue = client.projects.reduce((sum, project) => sum + (project.agreedAmount ?? 0), 0)
+  const unpaidValue = client.projects
+    .filter((project) => !project.isPaid && project.agreedAmount != null)
+    .reduce((sum, project) => sum + (project.agreedAmount ?? 0), 0)
+
   return (
-    <div className="p-6 max-w-2xl space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-900">{client.name}</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            {client._count.projects} project{client._count.projects !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Link href={`/clients/${id}/edit`}>
-          <Button size="sm" variant="outline">
-            <Pencil className="w-3.5 h-3.5 mr-1" />
-            Edit
-          </Button>
-        </Link>
-      </div>
-
-      <div className="bg-white border rounded-lg divide-y">
-        {[
-          ["Email", client.contactEmail ?? "—"],
-          ["Added", formatDate(client.createdAt)],
-          ["Last Updated", formatDate(client.updatedAt)],
-        ].map(([label, value]) => (
-          <div key={label as string} className="px-4 py-3 flex gap-4">
-            <span className="text-xs text-zinc-500 w-28 shrink-0 pt-0.5">{label}</span>
-            <span className="text-sm text-zinc-800">{value}</span>
-          </div>
-        ))}
-
-        {client.notes && (
-          <div className="px-4 py-3 flex gap-4">
-            <span className="text-xs text-zinc-500 w-28 shrink-0 pt-0.5">Notes</span>
-            <p className="text-sm text-zinc-700 whitespace-pre-wrap">{client.notes}</p>
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-4">
-        <Link href="/clients" className="text-sm text-zinc-500 hover:text-zinc-800">
-          ← Back to Clients
-        </Link>
+    <div className="page-wrap">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-xl text-foreground">{client.name}</h1>
         <Link
-          href={`/projects?clientId=${id}`}
-          className="text-sm text-zinc-500 hover:text-zinc-800 underline"
+          href={`/clients/${id}/edit`}
+          className="inline-flex h-8 items-center rounded-md border border-border px-3 text-sm font-medium text-foreground"
         >
-          View all projects →
+          Edit
         </Link>
       </div>
+
+      <section className="space-y-2 text-sm text-muted-foreground">
+        <div>{client.contactEmail || "-"}</div>
+        {client.notes ? <div className="whitespace-pre-wrap text-foreground">{client.notes}</div> : null}
+      </section>
+
+      <div className="text-sm text-muted-foreground">
+        {client.projects.length} project{client.projects.length !== 1 ? "s" : ""} ·{" "}
+        <span className="tabular-nums text-foreground">{formatCurrency(totalValue, "INR")}</span> total ·{" "}
+        <span className="tabular-nums text-red-400">{formatCurrency(unpaidValue, "INR")}</span> unpaid
+      </div>
+
+      <section className="surface-panel overflow-hidden rounded-lg">
+        <table className="data-table">
+          <thead className="bg-zinc-900/80">
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Payment</th>
+              <th className="text-right">Amount</th>
+              <th>Paid</th>
+              <th>Due</th>
+            </tr>
+          </thead>
+          <tbody>
+            {client.projects.map((project) => (
+              <tr key={project.id} className="hover:bg-zinc-900/55">
+                <td>
+                  <Link href={`/projects/${project.id}`} className="font-medium text-foreground hover:text-primary">
+                    {project.title}
+                  </Link>
+                </td>
+                <td className="text-muted-foreground">{project.status}</td>
+                <td className="text-muted-foreground">{project.paymentType}</td>
+                <td className="text-right font-medium tabular-nums text-foreground">
+                  {formatCurrency(project.agreedAmount, project.currency)}
+                </td>
+                <td className={project.isPaid ? "text-emerald-400" : "text-red-400"}>
+                  {project.isPaid ? "Paid" : "Open"}
+                </td>
+                <td className="tabular-nums text-muted-foreground">
+                  {project.dueDate
+                    ? new Intl.DateTimeFormat("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      }).format(new Date(project.dueDate))
+                    : "-"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
     </div>
   )
 }

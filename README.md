@@ -36,7 +36,12 @@ DIRECT_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler
 NEXT_PUBLIC_SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
 SUPABASE_STORAGE_BUCKET="project-files"
+SEED_USER_ID="demo_user"
 ```
+
+`SEED_USER_ID` is only for the local seed script. It is not required in Vercel.
+
+If you do not set Clerk keys locally, development falls back to a local demo session using `SEED_USER_ID` or `demo_user`. Production still requires real Clerk keys.
 
 ## Local Development
 

@@ -1,9 +1,10 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { getApiErrorMessage, readApiPayload } from "@/lib/api-response"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import type { Project } from "@/types"
-import { CheckCircle2, Pencil, Plus, Trash2, XCircle } from "lucide-react"
+import { Pencil, Plus, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { PaymentTypeBadge } from "./PaymentTypeBadge"
@@ -21,11 +22,18 @@ interface Props {
   onDelete: (id: string) => Promise<void> | void
 }
 
-function getTagList(tags: string | null | undefined) {
-  return (tags ?? "")
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean)
+function PaymentState({ isPaid }: { isPaid: boolean }) {
+  return (
+    <span
+      className={
+        isPaid
+          ? "inline-flex h-5 items-center rounded-md bg-emerald-950 px-2 text-[11px] font-medium text-emerald-300"
+          : "inline-flex h-5 items-center rounded-md bg-red-950 px-2 text-[11px] font-medium text-red-300"
+      }
+    >
+      {isPaid ? "Paid" : "Open"}
+    </span>
+  )
 }
 
 export function ProjectTable({ projects, onDelete }: Props) {
@@ -42,10 +50,10 @@ export function ProjectTable({ projects, onDelete }: Props) {
 
     try {
       const response = await fetch(`/api/projects/${deleteTarget.id}`, { method: "DELETE" })
-      const payload = await response.json().catch(() => null)
+      const payload = await readApiPayload(response)
 
       if (!response.ok) {
-        throw new Error(payload?.error ?? "Failed to delete project")
+        throw new Error(getApiErrorMessage(response, payload, "Failed to delete project"))
       }
 
       await onDelete(deleteTarget.id)
@@ -59,15 +67,11 @@ export function ProjectTable({ projects, onDelete }: Props) {
 
   if (projects.length === 0) {
     return (
-      <section className="surface-panel flex flex-col items-center justify-center p-12 text-center">
-        <p className="eyebrow">No Work Yet</p>
-        <h2 className="mt-2 text-3xl text-stone-900">Your board is ready for the first assignment.</h2>
-        <p className="mt-3 max-w-md text-sm leading-6 text-stone-600">
-          Start with one real project. The dashboard becomes useful as soon as due dates, payment posture, and client context are visible in one place.
-        </p>
-        <Button className="mt-6" onClick={() => router.push("/projects/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add your first project
+      <section className="surface-panel rounded-lg px-3 py-4 text-sm text-muted-foreground">
+        No projects found. Add a project or clear the current filters.
+        <Button className="ml-3 h-7 rounded-md px-2.5" size="sm" onClick={() => router.push("/projects/new")}>
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          New project
         </Button>
       </section>
     )
@@ -75,101 +79,74 @@ export function ProjectTable({ projects, onDelete }: Props) {
 
   return (
     <>
-      <div className="grid gap-4 xl:grid-cols-2">
-        {projects.map((project) => {
-          const tags = getTagList(project.tags)
-
-          return (
-            <article
-              key={project.id}
-              className="surface-panel flex flex-col gap-5 p-5 transition-transform duration-200 hover:-translate-y-0.5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <ProjectStatusBadge status={project.status} />
-                    <PaymentTypeBadge paymentType={project.paymentType} />
-                  </div>
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/projects/${project.id}`)}
-                      className="text-left text-2xl text-stone-900 transition-colors hover:text-stone-600"
-                    >
-                      {project.title}
-                    </button>
-                    <p className="mt-1 text-sm text-stone-500">{project.client.name}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="border-stone-200 bg-white"
-                    onClick={() => router.push(`/projects/${project.id}/edit`)}
+      <section className="surface-panel overflow-hidden rounded-lg">
+        <table className="data-table">
+          <thead className="bg-zinc-900/80">
+            <tr>
+              <th>Title</th>
+              <th>Client</th>
+              <th>Status</th>
+              <th>Payment</th>
+              <th className="text-right">Amount</th>
+              <th>Paid</th>
+              <th>Due</th>
+              <th className="w-[96px] text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {projects.map((project) => (
+              <tr key={project.id} className="group hover:bg-zinc-900/55">
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/projects/${project.id}`)}
+                    className="font-medium text-foreground hover:text-primary"
                   >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
-                    onClick={() => {
-                      setDeleteError("")
-                      setDeleteTarget(project)
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl bg-stone-50 p-4">
-                  <p className="eyebrow">Value</p>
-                  <p className="mt-2 text-lg font-semibold text-stone-900">
-                    {formatCurrency(project.agreedAmount, project.currency)}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-stone-50 p-4">
-                  <p className="eyebrow">Due Date</p>
-                  <p className="mt-2 text-lg font-semibold text-stone-900">
-                    {formatDate(project.dueDate)}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-stone-50 p-4">
-                  <p className="eyebrow">Paid</p>
-                  <div className="mt-2 flex items-center gap-2 text-lg font-semibold text-stone-900">
-                    {project.isPaid ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-rose-500" />
-                    )}
-                    <span>{project.isPaid ? "Settled" : "Open"}</span>
-                  </div>
-                </div>
-              </div>
-
-              {tags.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600"
+                    {project.title}
+                  </button>
+                </td>
+                <td className="text-muted-foreground">{project.client.name}</td>
+                <td>
+                  <ProjectStatusBadge status={project.status} />
+                </td>
+                <td>
+                  <PaymentTypeBadge paymentType={project.paymentType} />
+                </td>
+                <td className="text-right font-medium tabular-nums text-foreground">
+                  {formatCurrency(project.agreedAmount, project.currency)}
+                </td>
+                <td>
+                  <PaymentState isPaid={project.isPaid} />
+                </td>
+                <td className="tabular-nums text-muted-foreground">{formatDate(project.dueDate)}</td>
+                <td>
+                  <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground hover:bg-zinc-800 hover:text-foreground"
+                      onClick={() => router.push(`/projects/${project.id}/edit`)}
                     >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-
-              {project.notes ? (
-                <p className="line-clamp-3 text-sm leading-6 text-stone-600">{project.notes}</p>
-              ) : null}
-            </article>
-          )
-        })}
-      </div>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-red-400 hover:bg-red-950 hover:text-red-300"
+                      onClick={() => {
+                        setDeleteError("")
+                        setDeleteTarget(project)
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       <Dialog
         open={!!deleteTarget}
@@ -180,16 +157,15 @@ export function ProjectTable({ projects, onDelete }: Props) {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="border-border bg-card text-foreground">
           <DialogHeader>
-            <DialogTitle>Delete Project</DialogTitle>
+            <DialogTitle>Delete project</DialogTitle>
           </DialogHeader>
-          <p className="text-sm leading-6 text-stone-600">
-            Remove <span className="font-medium text-stone-900">{deleteTarget?.title}</span> from the desk.
-            This cannot be undone.
+          <p className="text-sm text-muted-foreground">
+            Delete <span className="font-medium text-foreground">{deleteTarget?.title}</span> permanently.
           </p>
           {deleteError ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="rounded-md border border-red-950 bg-red-950/60 px-3 py-2 text-sm text-red-300">
               {deleteError}
             </div>
           ) : null}
@@ -198,7 +174,7 @@ export function ProjectTable({ projects, onDelete }: Props) {
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete project"}
+              {deleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

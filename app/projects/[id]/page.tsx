@@ -1,13 +1,12 @@
-import { prisma } from "@/lib/prisma"
-import { auth } from "@clerk/nextjs/server"
-import { notFound } from "next/navigation"
-import { ProjectStatusBadge } from "@/components/projects/ProjectStatusBadge"
 import { PaymentTypeBadge } from "@/components/projects/PaymentTypeBadge"
 import { ProjectFiles } from "@/components/projects/ProjectFiles"
-import { formatCurrency, formatDate } from "@/lib/utils"
-import { CheckCircle, XCircle } from "lucide-react"
-import Link from "next/link"
+import { ProjectStatusBadge } from "@/components/projects/ProjectStatusBadge"
 import { Button } from "@/components/ui/button"
+import { getOptionalUserId } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { formatCurrency, formatDate } from "@/lib/utils"
+import Link from "next/link"
+import { notFound } from "next/navigation"
 
 export default async function ProjectDetailPage({
   params,
@@ -15,7 +14,7 @@ export default async function ProjectDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const { userId } = await auth()
+  const userId = await getOptionalUserId()
   const project = await prisma.project.findFirst({
     where: { id, userId: userId ?? "" },
     include: { client: true },
@@ -23,85 +22,68 @@ export default async function ProjectDetailPage({
 
   if (!project) return notFound()
 
-  const tags = project.tags
-    ? project.tags.split(",").filter(Boolean).map((t) => t.trim())
-    : []
-
   return (
-    <div className="p-6 max-w-3xl space-y-6">
-      <div className="flex items-start justify-between">
+    <div className="page-wrap">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">{project.title}</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">{project.client.name}</p>
+          <h1 className="text-xl text-foreground">{project.title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{project.client.name}</p>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/projects/${id}/edit`}>
-            <Button size="sm" variant="outline">Edit</Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* Badges */}
-      <div className="flex gap-2 flex-wrap">
-        <ProjectStatusBadge status={project.status} />
-        <PaymentTypeBadge paymentType={project.paymentType} />
-        {project.isPaid ? (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
-            <CheckCircle className="w-3 h-3" /> Paid
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 border border-red-200">
-            <XCircle className="w-3 h-3" /> Not Paid
-          </span>
-        )}
-      </div>
-
-      {/* Details Grid */}
-      <div className="bg-white border rounded-lg divide-y">
-        {[
-          ["Client", project.client.name],
-          ["Agreed Amount", formatCurrency(project.agreedAmount, project.currency)],
-          ["Due Date", formatDate(project.dueDate)],
-          ["Completed At", formatDate(project.completedAt)],
-          ["Added On", formatDate(project.createdAt)],
-        ].map(([label, value]) => (
-          <div key={label as string} className="px-4 py-3 flex gap-4">
-            <span className="text-xs text-zinc-500 w-28 shrink-0 pt-0.5">{label}</span>
-            <span className="text-sm text-zinc-800">{value}</span>
-          </div>
-        ))}
-
-        {tags.length > 0 && (
-          <div className="px-4 py-3 flex gap-4">
-            <span className="text-xs text-zinc-500 w-28 shrink-0 pt-0.5">Tags</span>
-            <div className="flex flex-wrap gap-1">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {project.notes && (
-          <div className="px-4 py-3 flex gap-4">
-            <span className="text-xs text-zinc-500 w-28 shrink-0 pt-0.5">Notes</span>
-            <p className="text-sm text-zinc-700 whitespace-pre-wrap">{project.notes}</p>
-          </div>
-        )}
-      </div>
-
-      <ProjectFiles projectId={project.id} />
-
-      <div>
-        <Link href="/projects" className="text-sm text-zinc-500 hover:text-zinc-800">
-          ← Back to Projects
+        <Link href={`/projects/${id}/edit`}>
+          <Button className="h-8 rounded-md px-3" variant="outline" size="sm">
+            Edit
+          </Button>
         </Link>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <ProjectStatusBadge status={project.status} />
+        <PaymentTypeBadge paymentType={project.paymentType} />
+        <span
+          className={
+            project.isPaid
+              ? "inline-flex h-6 items-center rounded-md bg-emerald-950 px-2.5 text-[11px] font-medium text-emerald-300"
+              : "inline-flex h-6 items-center rounded-md bg-red-950 px-2.5 text-[11px] font-medium text-red-300"
+          }
+        >
+          {project.isPaid ? "Paid" : "Outstanding"}
+        </span>
+      </div>
+
+      <section className="surface-panel overflow-hidden rounded-lg">
+        <table className="data-table">
+          <tbody>
+            <tr>
+              <td className="w-48 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Client</td>
+              <td>{project.client.name}</td>
+            </tr>
+            <tr>
+              <td className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Agreed Amount</td>
+              <td className="font-medium tabular-nums text-foreground">
+                {formatCurrency(project.agreedAmount, project.currency)}
+              </td>
+            </tr>
+            <tr>
+              <td className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Due Date</td>
+              <td>{formatDate(project.dueDate)}</td>
+            </tr>
+            <tr>
+              <td className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Completed At</td>
+              <td>{formatDate(project.completedAt)}</td>
+            </tr>
+            <tr>
+              <td className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Tags</td>
+              <td>{project.tags || "-"}</td>
+            </tr>
+            <tr>
+              <td className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Notes</td>
+              <td className="whitespace-pre-wrap">{project.notes || "-"}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <ProjectFiles projectId={project.id} />
     </div>
   )
 }

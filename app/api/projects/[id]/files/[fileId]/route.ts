@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireUserId, unauthorizedResponse } from "@/lib/auth"
-import { getSupabaseAdmin } from "@/lib/supabase"
+import {
+  getSupabaseAdmin,
+  hasSupabaseStorageEnv,
+  SUPABASE_STORAGE_MISSING_ENV_MESSAGE,
+} from "@/lib/supabase"
 
 export async function DELETE(
   _req: NextRequest,
@@ -10,6 +14,9 @@ export async function DELETE(
   try {
     const userId = await requireUserId()
     if (!userId) return unauthorizedResponse()
+    if (!hasSupabaseStorageEnv()) {
+      return NextResponse.json({ error: SUPABASE_STORAGE_MISSING_ENV_MESSAGE }, { status: 503 })
+    }
 
     const { id: projectId, fileId } = await params
 
@@ -37,6 +44,14 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("DELETE /api/projects/[id]/files/[fileId] error:", error)
-    return NextResponse.json({ error: "Failed to delete file" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error && error.message.includes("is not configured")
+            ? SUPABASE_STORAGE_MISSING_ENV_MESSAGE
+            : "Failed to delete file",
+      },
+      { status: error instanceof Error && error.message.includes("is not configured") ? 503 : 500 }
+    )
   }
 }

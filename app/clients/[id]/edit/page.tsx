@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma"
-import { auth } from "@clerk/nextjs/server"
-import { notFound } from "next/navigation"
 import { ClientForm } from "@/components/clients/ClientForm"
+import { getOptionalUserId } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 import type { Client } from "@/types"
+import { notFound } from "next/navigation"
 
 export default async function EditClientPage({
   params,
@@ -10,7 +10,7 @@ export default async function EditClientPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const { userId } = await auth()
+  const userId = await getOptionalUserId()
   const clientRaw = await prisma.client.findFirst({ where: { id, userId: userId ?? "" } })
 
   if (!clientRaw) return notFound()
@@ -24,10 +24,9 @@ export default async function EditClientPage({
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-lg font-semibold text-zinc-900">Edit Client</h1>
-        <p className="text-sm text-zinc-500">{client.name}</p>
+    <div className="page-wrap">
+      <div>
+        <h1 className="text-xl text-foreground">Edit Client</h1>
       </div>
       <ClientForm client={client} />
     </div>

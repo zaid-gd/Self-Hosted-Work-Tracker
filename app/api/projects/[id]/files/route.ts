@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireUserId, unauthorizedResponse } from "@/lib/auth"
-import { getStorageBucket, getSupabaseAdmin } from "@/lib/supabase"
+import {
+  getStorageBucket,
+  getSupabaseAdmin,
+  hasSupabaseStorageEnv,
+  SUPABASE_STORAGE_MISSING_ENV_MESSAGE,
+} from "@/lib/supabase"
 
 export const runtime = "nodejs"
 
@@ -13,6 +18,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const userId = await requireUserId()
     if (!userId) return unauthorizedResponse()
+    if (!hasSupabaseStorageEnv()) {
+      return NextResponse.json({ error: SUPABASE_STORAGE_MISSING_ENV_MESSAGE }, { status: 503 })
+    }
 
     const { id: projectId } = await params
     const project = await prisma.project.findFirst({
@@ -46,7 +54,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json(files)
   } catch (error) {
     console.error("GET /api/projects/[id]/files error:", error)
-    return NextResponse.json({ error: "Failed to fetch files" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error && error.message.includes("is not configured")
+            ? SUPABASE_STORAGE_MISSING_ENV_MESSAGE
+            : "Failed to fetch files",
+      },
+      { status: error instanceof Error && error.message.includes("is not configured") ? 503 : 500 }
+    )
   }
 }
 
@@ -54,6 +70,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const userId = await requireUserId()
     if (!userId) return unauthorizedResponse()
+    if (!hasSupabaseStorageEnv()) {
+      return NextResponse.json({ error: SUPABASE_STORAGE_MISSING_ENV_MESSAGE }, { status: 503 })
+    }
 
     const { id: projectId } = await params
     const project = await prisma.project.findFirst({
@@ -114,6 +133,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     )
   } catch (error) {
     console.error("POST /api/projects/[id]/files error:", error)
-    return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error && error.message.includes("is not configured")
+            ? SUPABASE_STORAGE_MISSING_ENV_MESSAGE
+            : "Failed to upload file",
+      },
+      { status: error instanceof Error && error.message.includes("is not configured") ? 503 : 500 }
+    )
   }
 }

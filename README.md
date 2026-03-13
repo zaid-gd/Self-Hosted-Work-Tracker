@@ -31,7 +31,8 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
 CLERK_SECRET_KEY="sk_test_..."
 NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
 NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
-DATABASE_URL="postgresql://edittracker:edittracker@localhost:5432/edittracker?schema=public"
+DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres"
 NEXT_PUBLIC_SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
 SUPABASE_STORAGE_BUCKET="project-files"
@@ -72,10 +73,11 @@ Then open `http://localhost:3000`.
 
 1. Create a Clerk application and add the Clerk env vars from `.env.example` to Vercel.
 2. Create a Supabase project.
-3. Use the Supabase Postgres connection string as `DATABASE_URL`.
-4. Create a private storage bucket named `project-files` or set `SUPABASE_STORAGE_BUCKET` to your preferred bucket name.
-5. Add `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to Vercel.
-6. Deploy.
+3. Set `DATABASE_URL` to the Supabase pooled connection string (`pooler.supabase.com:6543`) for runtime traffic.
+4. Set `DIRECT_URL` to the Supabase session pooler (`pooler.supabase.com:5432`) for Prisma migrations.
+5. Create a private storage bucket named `project-files` or set `SUPABASE_STORAGE_BUCKET` to your preferred bucket name.
+6. Add `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to Vercel.
+7. Deploy.
 
 `vercel.json` runs:
 
@@ -84,6 +86,8 @@ npm run db:migrate:deploy && npm run build
 ```
 
 That ensures the Prisma migrations are applied before Next.js builds.
+
+For Supabase on Vercel, using the direct `db.<project-ref>.supabase.co:5432` URL can fail with `P1001` because that path may rely on IPv6. The recommended setup is transaction pooler `DATABASE_URL` on port `6543` plus session pooler `DIRECT_URL` on port `5432`.
 
 ## Helpful Scripts
 

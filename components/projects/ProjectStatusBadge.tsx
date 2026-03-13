@@ -4,19 +4,19 @@ import type { ProjectStatus } from "@/types"
 const statusConfig: Record<ProjectStatus, { label: string; className: string }> = {
   PLANNED: {
     label: "Planned",
-    className: "border-zinc-700 bg-zinc-800 text-zinc-200",
+    className: "border-zinc-600 bg-zinc-700 text-zinc-100",
   },
   IN_PROGRESS: {
     label: "In Progress",
-    className: "border-blue-900 bg-blue-950 text-blue-300",
+    className: "border-blue-700 bg-blue-900/80 text-blue-100",
   },
   DELIVERED: {
     label: "Delivered",
-    className: "border-emerald-900 bg-emerald-950 text-emerald-300",
+    className: "border-emerald-700 bg-emerald-900/80 text-emerald-100",
   },
   CANCELLED: {
     label: "Cancelled",
-    className: "border-zinc-800 bg-zinc-900 text-zinc-500",
+    className: "border-zinc-800 bg-zinc-900 text-zinc-400",
   },
 }
 
@@ -33,7 +33,7 @@ export function ProjectStatusBadge({ status }: Props) {
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center rounded-md border px-2.5 text-[11px] font-medium tracking-[0.02em]",
+        "inline-flex h-5 items-center rounded-md border px-2 text-[11px] font-medium",
         config.className
       )}
     >

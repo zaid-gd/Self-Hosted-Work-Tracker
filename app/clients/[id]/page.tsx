@@ -1,3 +1,5 @@
+import { PaymentTypeBadge } from "@/components/projects/PaymentTypeBadge"
+import { ProjectStatusBadge } from "@/components/projects/ProjectStatusBadge"
 import { getOptionalUserId } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { formatCurrency } from "@/lib/utils"
@@ -31,8 +33,8 @@ export default async function ClientDetailPage({
 
   return (
     <div className="page-wrap">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl text-foreground">{client.name}</h1>
+      <div className="page-header">
+        <h1 className="text-base font-medium text-foreground">{client.name}</h1>
         <Link
           href={`/clients/${id}/edit`}
           className="inline-flex h-8 items-center rounded-md border border-border px-3 text-sm font-medium text-foreground"
@@ -41,20 +43,20 @@ export default async function ClientDetailPage({
         </Link>
       </div>
 
-      <section className="space-y-2 text-sm text-muted-foreground">
+      <div className="space-y-1 text-sm text-muted-foreground">
         <div>{client.contactEmail || "-"}</div>
         {client.notes ? <div className="whitespace-pre-wrap text-foreground">{client.notes}</div> : null}
-      </section>
-
-      <div className="text-sm text-muted-foreground">
-        {client.projects.length} project{client.projects.length !== 1 ? "s" : ""} ·{" "}
-        <span className="tabular-nums text-foreground">{formatCurrency(totalValue, "INR")}</span> total ·{" "}
-        <span className="tabular-nums text-red-400">{formatCurrency(unpaidValue, "INR")}</span> unpaid
       </div>
 
-      <section className="surface-panel overflow-hidden rounded-lg">
+      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+        <span className="tabular-nums">{client.projects.length} projects</span>
+        <span className="tabular-nums text-foreground">{formatCurrency(totalValue, "INR")}</span>
+        <span className="tabular-nums text-red-300">{formatCurrency(unpaidValue, "INR")}</span>
+      </div>
+
+      <section className="table-shell">
         <table className="data-table">
-          <thead className="bg-zinc-900/80">
+          <thead>
             <tr>
               <th>Title</th>
               <th>Status</th>
@@ -66,19 +68,23 @@ export default async function ClientDetailPage({
           </thead>
           <tbody>
             {client.projects.map((project) => (
-              <tr key={project.id} className="hover:bg-zinc-900/55">
+              <tr key={project.id} className="hover:bg-background/80">
                 <td>
-                  <Link href={`/projects/${project.id}`} className="font-medium text-foreground hover:text-primary">
+                  <Link href={`/projects/${project.id}`} className="table-row-link">
                     {project.title}
                   </Link>
                 </td>
-                <td className="text-muted-foreground">{project.status}</td>
-                <td className="text-muted-foreground">{project.paymentType}</td>
+                <td>
+                  <ProjectStatusBadge status={project.status} />
+                </td>
+                <td>
+                  <PaymentTypeBadge paymentType={project.paymentType} />
+                </td>
                 <td className="text-right font-medium tabular-nums text-foreground">
                   {formatCurrency(project.agreedAmount, project.currency)}
                 </td>
-                <td className={project.isPaid ? "text-emerald-400" : "text-red-400"}>
-                  {project.isPaid ? "Paid" : "Open"}
+                <td className={project.isPaid ? "text-emerald-300" : "text-red-300"}>
+                  {project.isPaid ? "Paid" : "Outstanding"}
                 </td>
                 <td className="tabular-nums text-muted-foreground">
                   {project.dueDate

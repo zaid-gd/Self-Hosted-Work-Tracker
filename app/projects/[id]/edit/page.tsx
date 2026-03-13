@@ -56,9 +56,7 @@ export default async function EditProjectPage({
 
   return (
     <div className="page-wrap">
-      <div>
-        <h1 className="text-xl text-foreground">Edit Project</h1>
-      </div>
+      <h1 className="text-base font-medium text-foreground">Edit Project</h1>
       <ProjectForm clients={clients} project={project} />
     </div>
   )

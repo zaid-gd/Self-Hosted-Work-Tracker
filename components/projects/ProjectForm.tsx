@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { getApiErrorMessage, readApiPayload } from "@/lib/api-response"
 import {
   Select,
   SelectContent,
@@ -12,24 +11,23 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { getApiErrorMessage, readApiPayload } from "@/lib/api-response"
 import { formatDateInput } from "@/lib/utils"
 import type { Client, Project } from "@/types"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 interface Props {
   clients: Client[]
   project?: Project
 }
 
+type FormErrors = Partial<Record<"title" | "clientId" | "agreedAmount" | "notes" | "contact", string>>
+
 export function ProjectForm({ clients, project }: Props) {
   const router = useRouter()
-  const isEdit = !!project
-  const showAmount = project?.paymentType
-    ? project.paymentType !== "FREE" && project.paymentType !== "SALARY"
-    : true
-
+  const isEdit = Boolean(project)
   const [form, setForm] = useState({
     title: project?.title ?? "",
     clientId: project?.clientId ?? "",
@@ -41,28 +39,53 @@ export function ProjectForm({ clients, project }: Props) {
     tags: project?.tags ?? "",
     notes: project?.notes ?? "",
     dueDate: formatDateInput(project?.dueDate),
-    completedAt: formatDateInput(project?.completedAt),
   })
-  const [error, setError] = useState("")
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [serverError, setServerError] = useState("")
   const [saving, setSaving] = useState(false)
 
-  const amountVisible = form.paymentType !== "FREE" && form.paymentType !== "SALARY"
+  const amountVisible = useMemo(
+    () => form.paymentType !== "FREE" && form.paymentType !== "SALARY",
+    [form.paymentType]
+  )
 
-  function set(key: string, value: unknown) {
-    setForm((prev) => ({ ...prev, [key]: value }))
+  function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((current) => ({ ...current, [key]: value }))
+    setErrors((current) => ({ ...current, [key]: undefined }))
+    setServerError("")
+  }
+
+  function validate() {
+    const nextErrors: FormErrors = {}
+
+    if (!form.title.trim()) nextErrors.title = "Title is required."
+    if (!form.clientId) nextErrors.clientId = "Client is required."
+
+    if (amountVisible) {
+      const amount = Number(form.agreedAmount)
+      if (!form.agreedAmount.trim()) {
+        nextErrors.agreedAmount = "Amount is required."
+      } else if (Number.isNaN(amount) || amount <= 0) {
+        nextErrors.agreedAmount = "Amount must be greater than zero."
+      }
+    }
+
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    setError("")
+    if (!validate()) return
+
     setSaving(true)
+    setServerError("")
 
     try {
       const body = {
         ...form,
-        agreedAmount: amountVisible && form.agreedAmount ? parseFloat(form.agreedAmount) : null,
+        agreedAmount: amountVisible ? Number(form.agreedAmount) : null,
         dueDate: form.dueDate || null,
-        completedAt: form.completedAt || null,
       }
 
       const url = isEdit ? `/api/projects/${project!.id}` : "/api/projects"
@@ -74,15 +97,16 @@ export function ProjectForm({ clients, project }: Props) {
         body: JSON.stringify(body),
       })
 
+      const payload = response.ok ? null : await readApiPayload(response)
+
       if (!response.ok) {
-        const payload = await readApiPayload(response)
         throw new Error(getApiErrorMessage(response, payload, "Failed to save project"))
       }
 
       router.push("/projects")
       router.refresh()
     } catch (issue: unknown) {
-      setError(issue instanceof Error ? issue.message : "Unknown error")
+      setServerError(issue instanceof Error ? issue.message : "Failed to save project")
     } finally {
       setSaving(false)
     }
@@ -92,7 +116,7 @@ export function ProjectForm({ clients, project }: Props) {
     <form onSubmit={handleSubmit} className="max-w-3xl space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="md:col-span-2">
-          <Label htmlFor="title" className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          <Label htmlFor="title" className="mb-2 block text-xs font-medium uppercase text-muted-foreground">
             Title
           </Label>
           <Input
@@ -100,21 +124,21 @@ export function ProjectForm({ clients, project }: Props) {
             value={form.title}
             onChange={(event) => set("title", event.target.value)}
             placeholder="Wedding highlight film"
-            required
             className="h-9 rounded-md border-border bg-background"
           />
+          {errors.title ? <p className="mt-1 text-xs text-red-300">{errors.title}</p> : null}
         </div>
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-3">
-            <Label htmlFor="clientId" className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            <Label htmlFor="clientId" className="text-xs font-medium uppercase text-muted-foreground">
               Client
             </Label>
-            <Link href="/clients/new" className="text-[11px] font-medium text-primary hover:text-amber-300">
+            <Link href="/clients/new" className="text-xs font-medium text-primary">
               New client
             </Link>
           </div>
-          <Select value={form.clientId} onValueChange={(value) => set("clientId", value)}>
+          <Select value={form.clientId} onValueChange={(value) => set("clientId", value ?? "")}>
             <SelectTrigger id="clientId" className="h-9 rounded-md border-border bg-background text-sm">
               <SelectValue placeholder="Select client" />
             </SelectTrigger>
@@ -126,13 +150,19 @@ export function ProjectForm({ clients, project }: Props) {
               ))}
             </SelectContent>
           </Select>
+          {errors.clientId ? <p className="mt-1 text-xs text-red-300">{errors.clientId}</p> : null}
+          {clients.length === 0 ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Create a client before saving this project.
+            </p>
+          ) : null}
         </div>
 
         <div>
-          <Label htmlFor="status" className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          <Label htmlFor="status" className="mb-2 block text-xs font-medium uppercase text-muted-foreground">
             Status
           </Label>
-          <Select value={form.status} onValueChange={(value) => set("status", value)}>
+          <Select value={form.status} onValueChange={(value) => set("status", value ?? "PLANNED")}>
             <SelectTrigger id="status" className="h-9 rounded-md border-border bg-background text-sm">
               <SelectValue />
             </SelectTrigger>
@@ -146,13 +176,13 @@ export function ProjectForm({ clients, project }: Props) {
         </div>
 
         <div>
-          <Label htmlFor="paymentType" className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          <Label htmlFor="paymentType" className="mb-2 block text-xs font-medium uppercase text-muted-foreground">
             Payment Type
           </Label>
           <Select
             value={form.paymentType}
             onValueChange={(value) => {
-              set("paymentType", value)
+              set("paymentType", value ?? "UNPAID")
               if (value === "FREE" || value === "SALARY") {
                 set("agreedAmount", "")
               }
@@ -172,11 +202,11 @@ export function ProjectForm({ clients, project }: Props) {
 
         {amountVisible ? (
           <div>
-            <Label htmlFor="agreedAmount" className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            <Label htmlFor="agreedAmount" className="mb-2 block text-xs font-medium uppercase text-muted-foreground">
               Amount
             </Label>
             <div className="flex gap-2">
-              <Select value={form.currency} onValueChange={(value) => set("currency", value)}>
+              <Select value={form.currency} onValueChange={(value) => set("currency", value ?? "INR")}>
                 <SelectTrigger className="h-9 w-24 rounded-md border-border bg-background text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -197,12 +227,16 @@ export function ProjectForm({ clients, project }: Props) {
                 className="h-9 rounded-md border-border bg-background tabular-nums"
               />
             </div>
+            {errors.agreedAmount ? <p className="mt-1 text-xs text-red-300">{errors.agreedAmount}</p> : null}
           </div>
         ) : (
-          <div className="flex items-end">
-            <p className="text-xs text-muted-foreground">
-              Amount is hidden for <span className="text-foreground">{form.paymentType.toLowerCase()}</span> work.
-            </p>
+          <div>
+            <Label className="mb-2 block text-xs font-medium uppercase text-muted-foreground">
+              Amount
+            </Label>
+            <div className="flex h-9 items-center rounded-md border border-border bg-background px-3 text-sm text-muted-foreground">
+              Hidden for this payment type
+            </div>
           </div>
         )}
 
@@ -219,8 +253,8 @@ export function ProjectForm({ clients, project }: Props) {
           </label>
         </div>
 
-        <div>
-          <Label htmlFor="tags" className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="md:col-span-2">
+          <Label htmlFor="tags" className="mb-2 block text-xs font-medium uppercase text-muted-foreground">
             Tags
           </Label>
           <Input
@@ -230,11 +264,11 @@ export function ProjectForm({ clients, project }: Props) {
             placeholder="wedding, highlight, reels"
             className="h-9 rounded-md border-border bg-background"
           />
-          <p className="mt-1 text-[11px] text-muted-foreground">Comma-separated tags</p>
+          <p className="mt-1 text-xs text-muted-foreground">Comma-separated tags</p>
         </div>
 
         <div>
-          <Label htmlFor="dueDate" className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          <Label htmlFor="dueDate" className="mb-2 block text-xs font-medium uppercase text-muted-foreground">
             Due Date
           </Label>
           <Input
@@ -246,21 +280,8 @@ export function ProjectForm({ clients, project }: Props) {
           />
         </div>
 
-        <div>
-          <Label htmlFor="completedAt" className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            Completed At
-          </Label>
-          <Input
-            id="completedAt"
-            type="date"
-            value={form.completedAt}
-            onChange={(event) => set("completedAt", event.target.value)}
-            className="h-9 rounded-md border-border bg-background"
-          />
-        </div>
-
         <div className="md:col-span-2">
-          <Label htmlFor="notes" className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          <Label htmlFor="notes" className="mb-2 block text-xs font-medium uppercase text-muted-foreground">
             Notes
           </Label>
           <Textarea
@@ -274,10 +295,10 @@ export function ProjectForm({ clients, project }: Props) {
         </div>
       </div>
 
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
+      {serverError ? <p className="text-sm text-red-300">{serverError}</p> : null}
 
       <div className="flex gap-2">
-        <Button type="submit" className="h-8 rounded-md px-3" size="sm" disabled={saving || !form.clientId}>
+        <Button type="submit" className="h-8 rounded-md bg-primary px-3 text-primary-foreground hover:bg-primary/90" size="sm" disabled={saving || !clients.length}>
           {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Project"}
         </Button>
         <Button type="button" variant="outline" className="h-8 rounded-md px-3" size="sm" onClick={() => router.back()}>

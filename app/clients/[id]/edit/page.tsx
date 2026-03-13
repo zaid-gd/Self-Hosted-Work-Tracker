@@ -25,9 +25,7 @@ export default async function EditClientPage({
 
   return (
     <div className="page-wrap">
-      <div>
-        <h1 className="text-xl text-foreground">Edit Client</h1>
-      </div>
+      <h1 className="text-base font-medium text-foreground">Edit Client</h1>
       <ClientForm client={client} />
     </div>
   )

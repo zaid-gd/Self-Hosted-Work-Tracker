@@ -39,17 +39,15 @@ export default async function NewProjectPage() {
 
     return (
       <div className="page-wrap">
-        <div>
-          <h1 className="text-xl text-foreground">New Project</h1>
-        </div>
+        <h1 className="text-base font-medium text-foreground">New Project</h1>
 
         {clients.length === 0 ? (
-          <section className="surface-panel rounded-lg px-3 py-3 text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             You need a client before creating a project.
-            <Link href="/clients/new" className="ml-3 font-medium text-primary hover:text-amber-300">
+            <Link href="/clients/new" className="ml-3 font-medium text-primary">
               Create client
             </Link>
-          </section>
+          </div>
         ) : (
           <ProjectForm clients={clients} />
         )}
@@ -58,9 +56,9 @@ export default async function NewProjectPage() {
   } catch (error) {
     return (
       <div className="page-wrap">
-        <section className="surface-panel rounded-lg px-3 py-3 text-sm text-red-300">
+        <div className="text-sm text-red-300">
           {getPrismaErrorMessage(error, "The project form could not load.")}
-        </section>
+        </div>
       </div>
     )
   }

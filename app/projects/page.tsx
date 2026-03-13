@@ -92,11 +92,9 @@ export default function ProjectsPage() {
 
   return (
     <div className="page-wrap">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl text-foreground">Projects</h1>
-        </div>
-        <Button className="h-8 rounded-md px-3" size="sm" onClick={() => router.push("/projects/new")}>
+      <div className="page-header">
+        <h1 className="text-base font-medium text-foreground">Projects</h1>
+        <Button className="h-8 rounded-md bg-primary px-3 text-primary-foreground hover:bg-primary/90" size="sm" onClick={() => router.push("/projects/new")}>
           <Plus className="mr-1 h-3.5 w-3.5" />
           New Project
         </Button>
@@ -112,16 +110,10 @@ export default function ProjectsPage() {
 
       <ProjectFilters clients={clients} filters={filters} onChange={setFilters} />
 
-      {error ? (
-        <section className="surface-panel rounded-lg px-3 py-3 text-sm text-red-300">
-          {error}
-        </section>
-      ) : null}
+      {error ? <div className="text-sm text-red-300">{error}</div> : null}
 
       {loading ? (
-        <section className="surface-panel rounded-lg px-3 py-3 text-sm text-muted-foreground">
-          Loading projects...
-        </section>
+        <div className="text-sm text-muted-foreground">Loading projects...</div>
       ) : (
         <ProjectTable projects={projects} onDelete={handleDelete} />
       )}

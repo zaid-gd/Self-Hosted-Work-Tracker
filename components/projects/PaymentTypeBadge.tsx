@@ -4,19 +4,19 @@ import type { PaymentType } from "@/types"
 const paymentConfig: Record<PaymentType, { label: string; className: string }> = {
   UNPAID: {
     label: "Unpaid",
-    className: "border-red-900 bg-red-950 text-red-300",
+    className: "border-red-700 bg-red-900/85 text-red-100",
   },
   PAID_ADVANCE: {
     label: "Advance",
-    className: "border-amber-900 bg-amber-950 text-amber-300",
+    className: "border-amber-600 bg-amber-900/85 text-amber-100",
   },
   FREE: {
     label: "Free",
-    className: "border-zinc-700 bg-zinc-800 text-zinc-300",
+    className: "border-zinc-600 bg-zinc-700 text-zinc-100",
   },
   SALARY: {
     label: "Salary",
-    className: "border-purple-900 bg-purple-950 text-purple-300",
+    className: "border-purple-700 bg-purple-900/85 text-purple-100",
   },
 }
 
@@ -33,7 +33,7 @@ export function PaymentTypeBadge({ paymentType }: Props) {
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center rounded-md border px-2.5 text-[11px] font-medium tracking-[0.02em]",
+        "inline-flex h-5 items-center rounded-md border px-2 text-[11px] font-medium",
         config.className
       )}
     >

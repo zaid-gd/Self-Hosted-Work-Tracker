@@ -1,14 +1,6 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { getApiErrorMessage, readApiPayload } from "@/lib/api-response"
-import { formatCurrency, formatDate } from "@/lib/utils"
-import type { Project } from "@/types"
-import { Pencil, Plus, Trash2 } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { PaymentTypeBadge } from "./PaymentTypeBadge"
-import { ProjectStatusBadge } from "./ProjectStatusBadge"
 import {
   Dialog,
   DialogContent,
@@ -16,6 +8,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { getApiErrorMessage, readApiPayload } from "@/lib/api-response"
+import { formatCurrency, formatDate } from "@/lib/utils"
+import type { Project } from "@/types"
+import { Pencil, Trash2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { PaymentTypeBadge } from "./PaymentTypeBadge"
+import { ProjectStatusBadge } from "./ProjectStatusBadge"
 
 interface Props {
   projects: Project[]
@@ -31,7 +31,7 @@ function PaymentState({ isPaid }: { isPaid: boolean }) {
           : "inline-flex h-5 items-center rounded-md bg-red-950 px-2 text-[11px] font-medium text-red-300"
       }
     >
-      {isPaid ? "Paid" : "Open"}
+      {isPaid ? "Paid" : "Outstanding"}
     </span>
   )
 }
@@ -67,21 +67,17 @@ export function ProjectTable({ projects, onDelete }: Props) {
 
   if (projects.length === 0) {
     return (
-      <section className="surface-panel rounded-lg px-3 py-4 text-sm text-muted-foreground">
-        No projects found. Add a project or clear the current filters.
-        <Button className="ml-3 h-7 rounded-md px-2.5" size="sm" onClick={() => router.push("/projects/new")}>
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          New project
-        </Button>
-      </section>
+      <div className="text-sm text-muted-foreground">
+        No projects found. Add a project or clear filters.
+      </div>
     )
   }
 
   return (
     <>
-      <section className="surface-panel overflow-hidden rounded-lg">
+      <section className="table-shell">
         <table className="data-table">
-          <thead className="bg-zinc-900/80">
+          <thead>
             <tr>
               <th>Title</th>
               <th>Client</th>
@@ -90,17 +86,17 @@ export function ProjectTable({ projects, onDelete }: Props) {
               <th className="text-right">Amount</th>
               <th>Paid</th>
               <th>Due</th>
-              <th className="w-[96px] text-right">Actions</th>
+              <th className="w-[88px] text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {projects.map((project) => (
-              <tr key={project.id} className="group hover:bg-zinc-900/55">
+              <tr key={project.id} className="group hover:bg-background/80">
                 <td>
                   <button
                     type="button"
                     onClick={() => router.push(`/projects/${project.id}`)}
-                    className="font-medium text-foreground hover:text-primary"
+                    className="table-row-link text-left"
                   >
                     {project.title}
                   </button>
@@ -112,7 +108,11 @@ export function ProjectTable({ projects, onDelete }: Props) {
                 <td>
                   <PaymentTypeBadge paymentType={project.paymentType} />
                 </td>
-                <td className="text-right font-medium tabular-nums text-foreground">
+                <td
+                  className={`text-right font-medium tabular-nums ${
+                    project.paymentType === "UNPAID" && !project.isPaid ? "text-amber-300" : "text-foreground"
+                  }`}
+                >
                   {formatCurrency(project.agreedAmount, project.currency)}
                 </td>
                 <td>
@@ -125,6 +125,7 @@ export function ProjectTable({ projects, onDelete }: Props) {
                       variant="ghost"
                       size="icon-sm"
                       className="text-muted-foreground hover:bg-zinc-800 hover:text-foreground"
+                      aria-label={`Edit ${project.title}`}
                       onClick={() => router.push(`/projects/${project.id}/edit`)}
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -133,6 +134,7 @@ export function ProjectTable({ projects, onDelete }: Props) {
                       variant="ghost"
                       size="icon-sm"
                       className="text-red-400 hover:bg-red-950 hover:text-red-300"
+                      aria-label={`Delete ${project.title}`}
                       onClick={() => {
                         setDeleteError("")
                         setDeleteTarget(project)
@@ -157,19 +159,13 @@ export function ProjectTable({ projects, onDelete }: Props) {
           }
         }}
       >
-        <DialogContent className="border-border bg-card text-foreground">
+        <DialogContent className="border-border bg-card text-foreground sm:max-w-xs">
           <DialogHeader>
-            <DialogTitle>Delete project</DialogTitle>
+            <DialogTitle>Delete project?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Delete <span className="font-medium text-foreground">{deleteTarget?.title}</span> permanently.
-          </p>
-          {deleteError ? (
-            <div className="rounded-md border border-red-950 bg-red-950/60 px-3 py-2 text-sm text-red-300">
-              {deleteError}
-            </div>
-          ) : null}
-          <DialogFooter>
+          <p className="text-sm text-muted-foreground">{deleteTarget?.title}</p>
+          {deleteError ? <p className="text-sm text-red-300">{deleteError}</p> : null}
+          <DialogFooter className="border-0 bg-transparent p-0">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
               Cancel
             </Button>

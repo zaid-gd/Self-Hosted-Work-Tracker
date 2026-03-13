@@ -45,44 +45,46 @@ export function ProjectFilters({ clients, filters, onChange }: Props) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onChange({ ...filters, search })
-    }, 220)
+    }, 180)
 
     return () => clearTimeout(timer)
   }, [filters, onChange, search])
 
   return (
-    <section className="surface-panel rounded-lg px-3 py-3">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => onChange({ ...filters, status: tab.value })}
-              className={cn(
-                "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
-                filters.status === tab.value
-                  ? "border-zinc-700 bg-zinc-800 text-zinc-100"
-                  : "border-border bg-background text-muted-foreground hover:bg-zinc-900 hover:text-foreground"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[220px_150px_170px_150px_auto]">
+    <section className="surface-panel rounded-xl px-3 py-2">
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 flex-1 items-center gap-2 xl:max-w-sm">
           <Input
-            placeholder="Search title or notes"
+            placeholder="Search projects"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="h-8 rounded-md border-border bg-background text-sm"
           />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1">
+            {STATUS_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => onChange({ ...filters, status: tab.value })}
+                className={cn(
+                  "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                  filters.status === tab.value
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
           <Select
             value={filters.paymentType || "ALL"}
             onValueChange={(value) =>
-              onChange({ ...filters, paymentType: !value || value === "ALL" ? "" : value })
+              onChange({ ...filters, paymentType: value && value !== "ALL" ? value : "" })
             }
           >
             <SelectTrigger className="h-8 rounded-md border-border bg-background text-sm">
@@ -100,7 +102,7 @@ export function ProjectFilters({ clients, filters, onChange }: Props) {
           <Select
             value={filters.clientId || "ALL"}
             onValueChange={(value) =>
-              onChange({ ...filters, clientId: !value || value === "ALL" ? "" : value })
+              onChange({ ...filters, clientId: value && value !== "ALL" ? value : "" })
             }
           >
             <SelectTrigger className="h-8 rounded-md border-border bg-background text-sm">
@@ -115,6 +117,16 @@ export function ProjectFilters({ clients, filters, onChange }: Props) {
               ))}
             </SelectContent>
           </Select>
+
+          <label className="flex h-8 items-center gap-2 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={filters.unpaidOnly}
+              onChange={(event) => onChange({ ...filters, unpaidOnly: event.target.checked })}
+              className="rounded border-zinc-700 bg-transparent"
+            />
+            Unpaid only
+          </label>
 
           <Select
             value={filters.sort}
@@ -133,16 +145,6 @@ export function ProjectFilters({ clients, filters, onChange }: Props) {
               <SelectItem value="clientName_asc">Client A-Z</SelectItem>
             </SelectContent>
           </Select>
-
-          <label className="flex h-8 items-center gap-2 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={filters.unpaidOnly}
-              onChange={(event) => onChange({ ...filters, unpaidOnly: event.target.checked })}
-              className="rounded border-zinc-700 bg-transparent"
-            />
-            Unpaid only
-          </label>
         </div>
       </div>
     </section>
